@@ -1,0 +1,422 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!-->
+<html class="no-js" lang="zh-CN"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>使用RawComparator加速Hadoop程序 - Zhou&#8217;s Blog</title>
+  <meta name="author" content="yoyzhou">
+  <!--[if lt IE 9]>
+    <script src="http://x.papaapp.com/farm1/a571d2/8dda131d/html5shiv.js"></script>
+    <![endif]-->
+  
+  <meta name="description" content="在本文中我们要介绍的方法从另外一个方面加快程序的速度，这就是使用RawComparator加速Hadoop程序。">
+  <meta name="keywords" content="hadoop, bigdata, writable, java, Rawcomparator, writablecomparable, custom, mapreduce, writablecomparator">
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://yoyzhou.github.io/blog/2013/05/13/hadoop-write-ur-own-rawcomparator/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script type="text/javascript" src="http://t.papaapp.com/js/libs/jquery/1.7.2/jquery.js"></script>
+   <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <script src="/javascripts/modernizr-2.0.js"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+	      jax: ["input/TeX", "output/HTML-CSS"],
+		  tex2jax: {
+		  inlineMath: [ ['$', '$'], ["\\(", "\\)"] ],
+		  displayMath: [ ['$$', '$$'], ["\\[", "\\]"] ],
+		  processEscapes: true,
+		  skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+		}}
+   );
+</script>
+<script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML" type="text/javascript"></script>
+<script src="/javascripts/ender.js"></script>
+<script src="/javascripts/octopress.js" type="text/javascript"></script>
+<link href="/atom.xml" rel="alternate" title="Zhou's Blog" type="application/atom+xml">
+
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-34034666-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <header id="header" class="clearfix">    <div class="container">
+        <div class="col-group">
+            <div class="site-name ">
+                <a id="logo" href="/">
+                   Zhou&#8217;s Blog
+                </a>
+                <p class="description">There is no truth as such, there is only truth from a point of view [Nietzsche]</p>
+            </div>
+            <div>
+                <nav id="nav-menu" class="clearfix">
+                    <a class="index-nav current" href="/">Blog</a>
+<a class="archives-nav" href="/blog/archives">Archives</a>
+                </nav>
+            </div>
+        </div>
+    </div>
+</header>
+  <div id="body">
+    <div class="container">
+    	<div class="col-group">
+			<div class="col-8" id="main">
+  <div class="res-cons">
+  <article class="post clearfix">
+  
+  <header>
+    
+      <h1 class="post-title">使用RawComparator加速Hadoop程序</h1>
+    
+    
+      <p class="post-meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-05-13T23:06:00-07:00" pubdate data-updated="true"></time>
+        
+         | <a href="#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+<div class="post-content"><p>在前面两篇文章<a href="/blog/2013/05/09/hadoop-serialization-and-writable-object-1/">[1]</a><a href="/blog/2013/05/10/hadoop-serialization-and-writable-object-2/">[2]</a>中我们介绍了Hadoop序列化的相关知识，包括Writable接口与Writable对象以及如何编写定制的Writable类，深入的分析了Writable类序列化之后占用的字节空间以及字节序列的构成。我们指出Hadoop序列化是Hadoop的核心部分之一，了解和分析Writable类的相关知识有助于我们理解Hadoop序列化的工作方式以及选择合适的Writable类作为MapReduce的键和值，以达到高效利用磁盘空间以及<strong>快速读写对象</strong>。因为在数据密集型计算中，在网络数据的传输是影响计算效率的一个重要因素，选择合适的Writable对象不但减小了磁盘空间，而且更重要的是其减小了需要在网络中传输的数据量，从而加快了程序的速度。</p>
+
+<p>在本文中我们介绍另外一种方法加快程序的速度，这就是<strong>使用RawComparator加速Hadoop程序</strong>。我们知道作为键（Key）的Writable类必须实现WritableComparable接口，以实现对键进行排序的功能。Writable类进行比较时，Hadoop的默认方式是先将序列化后的对象字节流反序列化为对象，然后再进行比较（compareTo方法），比较过程需要一个反序列化的步骤。RawComparator的做法是<strong>不进行反序列化，而是在字节流层面进行比较</strong>，这样就省下了反序列化过程，从而加速程序的运行。Hadoop自身提供的IntWritable、LongWritabe等类已经实现了这种优化，使这些Writable类作为键进行比较时，直接使用序列化的字节数组进行比较大小，而不用进行反序列化。</p>
+
+<h4 id="rawcomparator">RawComparator的实现</h4>
+
+<p>在Hadoop中编写Writable的RawComparator一般不直接继承RawComparator类，而是继承RawComparator的子类<strong>WritableComparator</strong>，因为WritableComparator类为我们提供了一些有用的工具方法，比如从字节数组中读取int、long和vlong等值。下面是上两篇文章中我们定制的MyWritable类的RawComparator实现，定制的MyWritable由两个VLongWritable对组成，为了添加RawComparator功能，Writable类必须实现WritableComparable接口，这里不再展示实现了WritableComparable接口的MyWritableComparable类的全部内容，而只是MyWritableComparable类中Comparator的实现，完整的代码可以在<a href="https://github.com/yoyzhou/weibo_analysis">github</a>中找到。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+<span class="line-number">19</span>
+<span class="line-number">20</span>
+<span class="line-number">21</span>
+<span class="line-number">22</span>
+<span class="line-number">23</span>
+<span class="line-number">24</span>
+<span class="line-number">25</span>
+<span class="line-number">26</span>
+<span class="line-number">27</span>
+<span class="line-number">28</span>
+<span class="line-number">29</span>
+<span class="line-number">30</span>
+<span class="line-number">31</span>
+<span class="line-number">32</span>
+<span class="line-number">33</span>
+<span class="line-number">34</span>
+<span class="line-number">35</span>
+<span class="line-number">36</span>
+<span class="line-number">37</span>
+<span class="line-number">38</span>
+<span class="line-number">39</span>
+<span class="line-number">40</span>
+<span class="line-number">41</span>
+<span class="line-number">42</span>
+<span class="line-number">43</span>
+<span class="line-number">44</span>
+<span class="line-number">45</span>
+<span class="line-number">46</span>
+<span class="line-number">47</span>
+<span class="line-number">48</span>
+</pre></td><td class="code"><pre><code class="java"><span class="line"><span class="o">...</span><span class="c1">//omitted for conciseness</span>
+</span><span class="line"><span class="cm">/**</span>
+</span><span class="line"><span class="cm"> * A RawComparator that compares serialized VlongWritable Pair</span>
+</span><span class="line"><span class="cm"> * compare method decode long value from serialized byte array one by one</span>
+</span><span class="line"><span class="cm"> *</span>
+</span><span class="line"><span class="cm"> * @author yoyzhou</span>
+</span><span class="line"><span class="cm"> *</span>
+</span><span class="line"><span class="cm"> * */</span>
+</span><span class="line"><span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">Comparator</span> <span class="kd">extends</span> <span class="n">WritableComparator</span> <span class="o">{</span>
+</span><span class="line">
+</span><span class="line">	<span class="kd">public</span> <span class="nf">Comparator</span><span class="o">()</span> <span class="o">{</span>
+</span><span class="line">		<span class="kd">super</span><span class="o">(</span><span class="n">MyWritableComparable</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+</span><span class="line">	<span class="o">}</span>
+</span><span class="line">
+</span><span class="line">	<span class="kd">public</span> <span class="kt">int</span> <span class="nf">compare</span><span class="o">(</span><span class="kt">byte</span><span class="o">[]</span> <span class="n">b1</span><span class="o">,</span> <span class="kt">int</span> <span class="n">s1</span><span class="o">,</span> <span class="kt">int</span> <span class="n">l1</span><span class="o">,</span> <span class="kt">byte</span><span class="o">[]</span> <span class="n">b2</span><span class="o">,</span> <span class="kt">int</span> <span class="n">s2</span><span class="o">,</span> <span class="kt">int</span> <span class="n">l2</span><span class="o">)</span> <span class="o">{</span>
+</span><span class="line">
+</span><span class="line">		<span class="kt">int</span> <span class="n">cmp</span> <span class="o">=</span> <span class="mi">1</span><span class="o">;</span>
+</span><span class="line">		<span class="c1">//determine how many bytes the first VLong takes</span>
+</span><span class="line">		<span class="kt">int</span> <span class="n">n1</span> <span class="o">=</span> <span class="n">WritableUtils</span><span class="o">.</span><span class="na">decodeVIntSize</span><span class="o">(</span><span class="n">b1</span><span class="o">[</span><span class="n">s1</span><span class="o">]);</span>
+</span><span class="line">		<span class="kt">int</span> <span class="n">n2</span> <span class="o">=</span> <span class="n">WritableUtils</span><span class="o">.</span><span class="na">decodeVIntSize</span><span class="o">(</span><span class="n">b2</span><span class="o">[</span><span class="n">s2</span><span class="o">]);</span>
+</span><span class="line">
+</span><span class="line">		<span class="k">try</span> <span class="o">{</span>
+</span><span class="line">			<span class="c1">//read value from VLongWritable byte array</span>
+</span><span class="line">			<span class="kt">long</span> <span class="n">l11</span> <span class="o">=</span> <span class="n">readVLong</span><span class="o">(</span><span class="n">b1</span><span class="o">,</span> <span class="n">s1</span><span class="o">);</span>
+</span><span class="line">			<span class="kt">long</span> <span class="n">l21</span> <span class="o">=</span> <span class="n">readVLong</span><span class="o">(</span><span class="n">b2</span><span class="o">,</span> <span class="n">s2</span><span class="o">);</span>
+</span><span class="line">
+</span><span class="line">			<span class="n">cmp</span> <span class="o">=</span> <span class="n">l11</span> <span class="o">&gt;</span> <span class="n">l21</span> <span class="o">?</span> <span class="mi">1</span> <span class="o">:</span> <span class="o">(</span><span class="n">l11</span> <span class="o">==</span> <span class="n">l21</span> <span class="o">?</span> <span class="mi">0</span> <span class="o">:</span> <span class="o">-</span><span class="mi">1</span><span class="o">);</span>
+</span><span class="line">			<span class="k">if</span> <span class="o">(</span><span class="n">cmp</span> <span class="o">!=</span> <span class="mi">0</span><span class="o">)</span> <span class="o">{</span>
+</span><span class="line">
+</span><span class="line">				<span class="k">return</span> <span class="n">cmp</span><span class="o">;</span>
+</span><span class="line">
+</span><span class="line">			<span class="o">}</span> <span class="k">else</span> <span class="o">{</span>
+</span><span class="line">
+</span><span class="line">				<span class="kt">long</span> <span class="n">l12</span> <span class="o">=</span> <span class="n">readVLong</span><span class="o">(</span><span class="n">b1</span><span class="o">,</span> <span class="n">s1</span> <span class="o">+</span> <span class="n">n1</span><span class="o">);</span>
+</span><span class="line">				<span class="kt">long</span> <span class="n">l22</span> <span class="o">=</span> <span class="n">readVLong</span><span class="o">(</span><span class="n">b2</span><span class="o">,</span> <span class="n">s2</span> <span class="o">+</span> <span class="n">n2</span><span class="o">);</span>
+</span><span class="line">				<span class="k">return</span> <span class="n">cmp</span> <span class="o">=</span> <span class="n">l12</span> <span class="o">&gt;</span> <span class="n">l22</span> <span class="o">?</span> <span class="mi">1</span> <span class="o">:</span> <span class="o">(</span><span class="n">l12</span> <span class="o">==</span> <span class="n">l22</span> <span class="o">?</span> <span class="mi">0</span> <span class="o">:</span> <span class="o">-</span><span class="mi">1</span><span class="o">);</span>
+</span><span class="line">			<span class="o">}</span>
+</span><span class="line">		<span class="o">}</span> <span class="k">catch</span> <span class="o">(</span><span class="n">IOException</span> <span class="n">e</span><span class="o">)</span> <span class="o">{</span>
+</span><span class="line">				<span class="k">throw</span> <span class="k">new</span> <span class="nf">RuntimeException</span><span class="o">(</span><span class="n">e</span><span class="o">);</span>
+</span><span class="line">		<span class="o">}</span>
+</span><span class="line">	<span class="o">}</span>
+</span><span class="line"><span class="o">}</span>
+</span><span class="line">
+</span><span class="line"><span class="kd">static</span> <span class="o">{</span> <span class="c1">// register this comparator</span>
+</span><span class="line">	<span class="n">WritableComparator</span><span class="o">.</span><span class="na">define</span><span class="o">(</span><span class="n">MyWritableComparable</span><span class="o">.</span><span class="na">class</span><span class="o">,</span> <span class="k">new</span> <span class="nf">Comparator</span><span class="o">());</span>
+</span><span class="line"><span class="o">}</span>
+</span><span class="line">
+</span><span class="line"><span class="o">...</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>通过上面的代码我们可以看到要实现Writable的RawComparator我们只需要重载WritableComparator的<code>public int compare(byte[] b1, int s1, int l1, byte[] b2, int s2, int l2)</code>方法。在我们的例子中，通过从VLongWritable对序列化后字节数组中一个一个的读取VLongWritable的值，再进行比较。</p>
+
+<p>当然编写完compare方法之后，不要忘了为Writable类注册编写的RawComparator类。</p>
+
+<h4 id="section">总结</h4>
+
+<p>为Writable类编写RawComparator必须对Writable本身序列化之后的字节数组有清晰的了解，知道如何从字节数组中读取Writable对象的值，而这正是我们前两篇关于<strong>Hadoop序列化和Writable接口</strong>的文章所要阐述的内容。</p>
+
+<p>通过以上的三篇文章，我们了解了Hadoop Writable接口，如何编写自己的Writable类，Writable类的字节序列长度与其构成，以及如何为Writable类编写RawComparator来为Hadoop提速。</p>
+
+<h4 id="section-1">参考资料</h4>
+
+<p>Tom White, Hadoop: The Definitive Guide, 3rd Edition </p>
+
+<p><a href="/blog/2013/05/09/hadoop-serialization-and-writable-object-1/">Hadoop序列化与Writable接口(一)</a></p>
+
+<p><a href="/blog/2013/05/10/hadoop-serialization-and-writable-object-2/">Hadoop序列化与Writable接口(二)</a></p>
+
+<p><code>--EOF--</code></p>
+
+</div>
+
+
+  <footer class="post-footer">
+    <div class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">yoyzhou</span></span>
+ under 
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/bigdata/'>bigdata</a>, <a class='category' href='/blog/categories/hadoop/'>hadoop</a>, <a class='category' href='/blog/categories/java/'>java</a>, <a class='category' href='/blog/categories/writable/'>writable</a>
+  
+</span>
+
+
+    </div>
+    
+      <div class="sharing">
+  
+  
+  
+</div>
+
+    
+    <div class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2013/05/10/hadoop-serialization-and-writable-object-2/" title="Previous Post: Hadoop序列化与Writable接口(二)">&laquo; Hadoop序列化与Writable接口(二)</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2013/05/26/clustering-with-mahout/" title="Next Post: Mahout与聚类分析">Mahout与聚类分析 &raquo;</a>
+      
+    </div>
+  </footer>
+</article>
+
+  <section>
+    <h3>Comments</h3>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+  </div>
+</div>
+
+  <aside id="secondary">
+  
+    
+<section class="widget">
+	<h3 class="widget-title">About Me</h3>
+	<p><code style="font-size: 14px;">Writing is the best way of learning</code></p>
+</section>
+<section class="widget">
+	<h3 class="widget-title">Recent Posts</h3>
+	<ul class="widget-list">
+		
+     	<li>
+      	  <a href="/blog/2013/06/04/mahout-clustering-with-hadoop/">在Hadoop上运行Mahout KMeans聚类分析</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/26/clustering-with-mahout/">Mahout与聚类分析</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/13/hadoop-write-ur-own-rawcomparator/">使用RawComparator加速Hadoop程序</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/10/hadoop-serialization-and-writable-object-2/">Hadoop序列化与Writable接口(二)</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/09/hadoop-serialization-and-writable-object-1/">Hadoop序列化与Writable接口(一)</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/29/viz-following-networks-of-weibo-celebrities/">微博名人关注网络的社会网络分析</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/29/a-kinda-betweenness-centrality-algorithm/">A Kinda Betweenness Centrality Algorithm</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/28/studying-notes-a-set-of-measures-of-centrality-based-on-betweenness/">A Set of Measures of Centrality Based on Betweenness</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/21/adding-filter-in-hadoop-mapper-class/">Adding Filter in Hadoop Mapper Class</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/14/steps-of-programming-hadoop-with-eclipse/">使用Eclipse开发MapReduce程序的步骤</a>
+      	</li>
+    	
+	</ul>
+</section>
+
+<section class="widget">
+  <h3>GitHub Repos</h3>
+  <ul id="gh_repos" class="widget-list">
+    <li class="loading">Status updating&#8230;</li>
+  </ul>
+  
+  <a href="https://github.com/yoyzhou">@yoyzhou</a> on GitHub
+  
+  <script type="text/javascript">
+    $.domReady(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'yoyzhou',
+            count: 0,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+
+
+
+  
+</aside>
+
+
+      	</div>
+    </div>
+  </div>
+  <footer id="footer">
+  	<div class="container">
+	Copyright &copy; 2014 - yoyzhou -
+  <span class="credit">Powered by <a rel="nofollow" href="http://octopress.org">Octopress</a> on <a rel="nofollow" href="http://pages.github.com/">GitHubPages</a>
+  </span>
+  - <span class="credit">Theme by <a rel="nofollow" href="http://pagecho.com">Cho</a></span>
+
+
+</div>
+
+  </footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'yoyzhou';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://yoyzhou.github.io/blog/2013/05/13/hadoop-write-ur-own-rawcomparator/';
+        var disqus_url = 'http://yoyzhou.github.io/blog/2013/05/13/hadoop-write-ur-own-rawcomparator/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+
+
+
+
+</body>
+</html>

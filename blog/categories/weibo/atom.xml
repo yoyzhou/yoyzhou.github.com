@@ -1,0 +1,920 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: weibo | Zhou's Blog]]></title>
+  <link href="http://yoyzhou.github.io/blog/categories/weibo/atom.xml" rel="self"/>
+  <link href="http://yoyzhou.github.io/"/>
+  <updated>2014-11-02T01:05:30-07:00</updated>
+  <id>http://yoyzhou.github.io/</id>
+  <author>
+    <name><![CDATA[yoyzhou]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[微博名人关注网络的社会网络分析]]></title>
+    <link href="http://yoyzhou.github.io/blog/2013/04/29/viz-following-networks-of-weibo-celebrities/"/>
+    <updated>2013-04-29T22:41:00-07:00</updated>
+    <id>http://yoyzhou.github.io/blog/2013/04/29/viz-following-networks-of-weibo-celebrities</id>
+    <content type="html"><![CDATA[<p>社交网络分析起源于社会学家使用数学与图论的方法研究社会群组中人与人之间的交互关系，如中心性分析、凝聚子群分析、社会结构分析等，最著名的莫过于美国社会心理学家Stanley Milgram的”六度分离理论”。传统的社会网络分析重点研究的是社会网络分析的概念以及通过社会网络分析研究社会结构对人、组织的影响，但是由于天然的地域限制，网络的大小受到一定的限制。</p>
+
+<p>随着互联网的出现，特别是社交网站的迅速崛起，国外的Facebook、Twitter、Linked，国内的人人、微博等，互联网赋予了社交网络分析前所未有的机遇和新的挑战。首先，互联网打破了地域的限制，无论来自任何地方都可以通过互联网发生联系，目前Facebook有超过10亿的用户，他们来自全球，相互成为好友；其次，获得研究数据变得非常容易，社交网站拥有大量的用户数据，这些数据对社会网络分析来说就是宝贵的财富，以前从未有过，这也是目前社会网络分析在互联网爆发的主要原因；再次，相比于单一的人与人之间的交互关系，社交网站有着丰富的多媒体信息，除了用户关系，还有文本、图片、视频等内容。</p>
+
+<p>但是数据不是信息，面对社交网站上的海量数据，需要有新的方法处理大数据，并从海量数据中挖掘出有价值的信息；同时应用社交网站的用户信息还面临这隐私保护的问题。</p>
+
+<p>本文从社会网络分析的角度分析新浪微博名人帐号的关注网络，通过中介中心性分析关注网络中的控制网络信息流动的中心人物，并且使用<a href="http://en.wikipedia.org/wiki/Modularity_(networks)">Modularity</a>（模块、群组）算法将关注网络划分为不同群组，最后我们使用Gephi可视化微博名人的关注网络。</p>
+
+<h3 id="section">相关理论简介</h3>
+
+<h4 id="section-1">中介中心性</h4>
+
+<p>中介中心性（Betweenness Centrality）是处于网络中的点的中心性/重要程度的一种度量方式，网络中点的中介中心性直观的定义为“该点处于其他点最短路径上的次数”，处于这样位置上的点对路径上的信息传输具有一定的控制（阻止、掩饰、歪曲）能力。因此在同一个网络中，哪一个点的中介中心性越高，该点在网络中对信息的控制能力就越强，相反，中介中心性低，对信息的控制也就低。</p>
+
+<p>如果希望了解中介中心性的详细内容，可参考Wikipedia上的词条<a href="http://en.wikipedia.org/wiki/Betweenness_centrality">Betweenness Centrality</a>，和我的的上两篇文章<a href="/blog/2013/04/28/studying-notes-a-set-of-measures-of-centrality-based-on-betweenness/">A Set of Measures of Centrality Based on Betweenness</a>与<a href="http://yoyzhou.github.io/blog/2013/04/29/a-kinda-betweenness-centrality-algorithm/">A Kinda Betweenness Centrality Algorithm</a>。</p>
+
+<h4 id="section-2">网络群组</h4>
+
+<p>网络群组（Modularity）是社会网络分析中用于分析网络结构的一种方法。根据一个群组内部比群组外部具有更高密度的联结的原则，它将网络分成不同的群组（通常也叫群（groups）、族群（clusters）或者社群（communities）），通常用来侦测网络的社群结构。</p>
+
+<p>更多群组的信息请参考Wikipedia词条<a href="http://en.wikipedia.org/wiki/Modularity_(networks)">Modularity</a>.</p>
+
+<h3 id="section-3">数据来源</h3>
+
+<h4 id="section-4">数据收集</h4>
+
+<p>本文所使用的数据来源于新浪微博的用户关注信息，一共收集了30999个新浪微博用户的关注信息，去重后被关注的用户数量为3,940,891位。</p>
+
+<p>以下是收集数据的概述：</p>
+
+<p><strong>数据收集时间</strong>：2013.3.18~2013.4.2</p>
+
+<p><strong>原始数据</strong>：包含两部分，一部分是用户信息，另一部分是用户的关注信息</p>
+
+<p><strong>用户信息</strong>：用户信息从用户的/info页面上收集</p>
+
+<p><strong>用户关注信息</strong>：用户关注信息从用户的/follow页面逐页收集</p>
+
+<h4 id="section-5">数据预处理</h4>
+
+<p>首先，我们定义微博名人为：在我们所收集的数据中，被关注的次数大于等于1000；然后利用上小节中收集的数据，使用<a href="http://hadoop.apache.org/">Hadoop</a>将数据处理为：”用户, 关注用户”的形式。对于如何在Hadoop中使用Filter处理数据可以参考我的文章<a href="/blog/2013/04/21/adding-filter-in-hadoop-mapper-class/">Adding Filter in Hadoop Mapper Class</a>；最后我们获得了一个包含218,071个节点，677,268条边的微薄名人（有向）关注网络。</p>
+
+<p>需要注意的是在下面的分析中，由于计算资源的有限，我们在Hadoop获得的结果上，进一步将节点数缩小到100个，相应的边的数量为4820。这一步骤是由限制名人网络中节点入度为178实现的。</p>
+
+<h3 id="section-6">微博名人关注网络分析</h3>
+
+<h4 id="section-7">中介中心性和群组分析</h4>
+
+<p>下表列出了中介中心性Top20的微博名人（数据保留小数点后两位）。可以看出在我们的数据集中老沉（新浪执行副总裁、总编辑陈彤）、薛蛮子（著名天使投资人）和徐小平（真格基金创始人、新东方联合创始人）名列前三，李开复中心性值排在第七，为108.16；有11个账户的中介中心性值超过100，他们在网络中处于最短路径上的次数大于100。</p>
+
+<table>
+  <tbody>
+    <tr>
+      <td>排名</td>
+      <td>微博帐号</td>
+      <td>中介中心性值</td>
+      <td>群组</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>老沉</td>
+      <td>188.31</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>薛蛮子</td>
+      <td>156.74</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>徐小平</td>
+      <td>142.70</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>王利芬</td>
+      <td>127.67</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>正和岛刘东华</td>
+      <td>124.40</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>封新城</td>
+      <td>119.40</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td>李开复</td>
+      <td>108.16</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td>巴曙松</td>
+      <td>104.45</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>9</td>
+      <td>作业本</td>
+      <td>103.95</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td>刘春</td>
+      <td>101.13</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>11</td>
+      <td>张力奋</td>
+      <td>100.36</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>12</td>
+      <td>王冉</td>
+      <td>99.05</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <td>13</td>
+      <td>财经网</td>
+      <td>97.46</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>14</td>
+      <td>华尔街日报中文网</td>
+      <td>94.45</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <td>15</td>
+      <td>李承鹏</td>
+      <td>88.33</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <td>16</td>
+      <td>王克勤</td>
+      <td>84.17</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <td>17</td>
+      <td>韩寒</td>
+      <td>79.72</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <td>18</td>
+      <td>章立凡</td>
+      <td>76.93</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <td>19</td>
+      <td>南都周刊</td>
+      <td>75.87</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <td>20</td>
+      <td>钱钢</td>
+      <td>75.75</td>
+      <td>2</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>上表中“群组”列给出了中心性Top20微博名人的群组分类，将他们大致分为三个群组：</p>
+
+<blockquote>
+  <p>+ <strong>互联网+青年导师</strong>，</p>
+</blockquote>
+
+<blockquote>
+  <p>+ <strong>新闻媒体相关</strong>，和</p>
+</blockquote>
+
+<blockquote>
+  <p>+ <strong>新知识分子</strong>。</p>
+</blockquote>
+
+<p>更直观的分类请参看下小节的可视化分析。</p>
+
+<h4 id="section-8">可视化分析</h4>
+
+<p>我们使用<a href="https://gephi.org/">Gephi</a>对微博名人关注网络数据进行可视化分析。如下图所示：</p>
+
+<p>图中节点大小代表中介中心性的大小，节点的颜色代表相应的群组，相同的节点颜色表示处于同一个群组，从图中可以清楚的看到群组的分布情况。</p>
+
+<p><img src="/images/fntk100.png" alt="fntk_100" /></p>
+
+<p><strong>动态交互网络</strong>：</p>
+
+<p><a href="/network/index.html">动态交互网络/Interactive Dynamic Network</a></p>
+
+<h3 id="section-9">结束语</h3>
+
+<p>本文运用社会网络分析方法，通过中介中心性和群组两个维度，对微博名人的关注网络进行了分析，通过分析我们得出了微博名人中介中心性，并且将微博名人的关注网络划分为了三个群组。</p>
+
+<p>虽然本文作者设想将本文作为<code>大数据</code>来进行分析，但是由于计算资源的有限，只能将分析的节点数一再降低；本文中对名人界定以数据集中被关注数量进行度量，更加准确的度量应该以现实微博中用户的被关注数量。</p>
+
+<p>如何在MapReduce框架下进行社交网络分析，将会是一个很价值的主题。</p>
+
+<p>最后，由于本文使用的数据是SINA微博用户数据的很小一部分，文中的排名和可视化网络并非SINA微博真实情况的反映，结论仅供参考。</p>
+
+<p><code>---EOF---</code></p>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[基于UID的WEIBO信息抓取框架WEIBO_SCRAPY]]></title>
+    <link href="http://yoyzhou.github.io/blog/2013/04/08/weibo-scrapy-framework-with-multi-threading/"/>
+    <updated>2013-04-08T20:55:00-07:00</updated>
+    <id>http://yoyzhou.github.io/blog/2013/04/08/weibo-scrapy-framework-with-multi-threading</id>
+    <content type="html"><![CDATA[<p>本文介绍基于微博UID的SINA微博信息抓取框架WEIBO_SCRAPY。 WEIBO_SCRAPY是一个PYTHON实现的，使用多线程抓取WEIBO信息的框架。WEIBO_SCRAPY框架给用户提供WEIBO的模拟登录和多线程抓取微博信息的接口，让用户只需关心抓取的业务逻辑，而不用处理棘手的WEIBO模拟登录和多线程编程。</p>
+
+<h3 id="weiboscrapy">WEIBO_SCRAPY</h3>
+<p>WEIBO_SCRAPY是一个PYTHON实现的，使用基于微博UID的方式从WEIBO.COM页面抓取信息的框架。框架以微博UID为最小单位，为每一个UID分配一个抓取线程，因此每一个UID相当于一个<strong>抓取任务</strong>。WEIBO_SCRAPY内置微博模拟登录和多线程框架，让用户只需关注以微博UID为基础的抓取业务逻辑。具体的说，使用WEIBO_SCRAPY用户只需要重载WEIBO_SCRAPY的<strong>抓取任务</strong>方法为自己的抓取逻辑，即可实现多线程地抓取微博信息（详见下文<code>WEIBO_SCRAPY的实现</code>小节）。</p>
+
+<h3 id="weiboscrapy-1">WEIBO_SCRAPY的功能</h3>
+<p>1. 微博模拟登录</p>
+
+<p>2. 多线程抓取框架</p>
+
+<p>3. <strong>抓取任务</strong>接口</p>
+
+<p>4. 抓取参数配置</p>
+
+<h3 id="weiboscrapy-2">WEIBO_SCRAPY的实现</h3>
+
+<h4 id="section">1 微博模拟登录</h4>
+<p>请参考拙文<a href="/blog/2013/03/18/sina-weibo-login-simulator-in-python/">Python模拟登录新浪微薄（使用RSA加密方式和Cookies文件）</a></p>
+
+<h4 id="section-1">2 多线程抓取框架</h4>
+<p>WEIBO_SCRAPY使用<a href="http://docs.python.org/2/library/queue.html">Queue</a>实现多线程抓取框架，Queue中的元素为微博用户的UID，每一个抓取线程消费Queue中的UID，抓取线程在获得UID之后交给<strong>抓取任务</strong>处理该UID。框架实现<code>从某一个UID开始</code>和<code>从文件中加载UID列表</code>两种抓取方式，无论何种方式都有可能返回在抓取过程中新获得的UID(通过解析抓取的页面获得)，并加入到Queue中，对于从单一某个UID开始的方式，返回新获得的UID是推荐的做法，不然Queue中就只有开始UID一个抓取任务。</p>
+
+<blockquote>
+  <p>The Queue module implements multi-producer, multi-consumer queues. It is especially useful in threaded programming when information must be exchanged safely between multiple threads. </p>
+</blockquote>
+
+<p>关于更多Python多线程编程的知识，请参考拙文<a href="/blog/2013/02/28/python-threads-synchronization-locks/">Python线程同步机制: Locks, RLocks, Semaphores, Conditions, Events和Queues</a></p>
+
+<p>以下是WEIBO_SCRAPY多线程框架的实现代码，分别是抓取线程和抓取的主进程，在第二段代码中抓取的主进程生成用户指定数目的抓取进行执行抓取任务：</p>
+
+<p>抓取线程</p>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="k">class</span> <span class="nc">scrapy_threading</span><span class="p">(</span><span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">):</span>
+</span><span class='line'>    <span class="err">“</span><span class="s">&quot;”Thread class to handle scrapy task”””&lt;/p&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span><span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">,</span> <span class="n">wanted</span><span class="p">):</span>
+</span><span class='line'>    <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</span><span class='line'>    <span class="bp">self</span><span class="o">.</span><span class="n">do_task</span> <span class="o">=</span> <span class="n">task</span>
+</span><span class='line'>    <span class="bp">self</span><span class="o">.</span><span class="n">wanted</span> <span class="o">=</span> <span class="n">wanted</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span class='line'>    <span class="k">global</span> <span class="n">visited_uids</span>
+</span><span class='line'>    <span class="k">global</span> <span class="n">task_queue</span>
+</span><span class='line'>    <span class="k">global</span> <span class="n">scraped</span>
+</span><span class='line'>    <span class="k">global</span> <span class="n">lock</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">while</span> <span class="n">scraped</span> <span class="o">&amp;</span><span class="n">lt</span><span class="p">;</span> <span class="bp">self</span><span class="o">.</span><span class="n">wanted</span><span class="p">:</span>
+</span><span class='line'>
+</span><span class='line'>        <span class="c">#crawl info based on each uid</span>
+</span><span class='line'>        <span class="k">if</span> <span class="n">task_queue</span><span class="p">:</span>
+</span><span class='line'>
+</span><span class='line'>            <span class="n">uid</span> <span class="o">=</span> <span class="n">task_queue</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+</span><span class='line'>
+</span><span class='line'>            <span class="k">if</span> <span class="n">uid</span> <span class="ow">in</span> <span class="n">visited_uids</span><span class="p">:</span> <span class="c">#already crawled</span>
+</span><span class='line'>                <span class="n">task_queue</span><span class="o">.</span><span class="n">task_done</span><span class="p">()</span>
+</span><span class='line'>
+</span><span class='line'>            <span class="k">else</span><span class="p">:</span>
+</span><span class='line'>                <span class="k">try</span><span class="p">:</span>
+</span><span class='line'>                    <span class="n">gains</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_task</span><span class="p">(</span><span class="n">uid</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>                    <span class="c">#per debug</span>
+</span><span class='line'>                    <span class="n">wow</span> <span class="o">=</span> <span class="s">&#39;{0: &amp;lt;25}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s">&#39;[&#39;</span> <span class="o">+</span> <span class="n">time</span><span class="o">.</span><span class="n">asctime</span><span class="p">()</span> <span class="o">+</span> <span class="s">&#39;] &#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s">&#39; uid_&#39;</span> <span class="o">+</span> <span class="s">&#39;{0: &amp;lt;12}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">uid</span><span class="p">)</span>
+</span><span class='line'>                    <span class="k">print</span> <span class="n">wow</span>
+</span><span class='line'>                    <span class="k">for</span> <span class="n">uid</span> <span class="ow">in</span> <span class="n">gains</span><span class="p">:</span>
+</span><span class='line'>                        <span class="n">task_queue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">uid</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>                    <span class="c">#signals that queue job is done</span>
+</span><span class='line'>                    <span class="n">task_queue</span><span class="o">.</span><span class="n">task_done</span><span class="p">()</span>
+</span><span class='line'>
+</span><span class='line'>                    <span class="c">#counting scrapied number</span>
+</span><span class='line'>                    <span class="k">with</span> <span class="n">lock</span><span class="p">:</span>
+</span><span class='line'>                        <span class="n">scraped</span> <span class="o">+=</span> <span class="mi">1</span>
+</span><span class='line'>                        <span class="c">#per debug</span>
+</span><span class='line'>                        <span class="k">print</span> <span class="s">&#39;scraped: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">scraped</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>                <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+</span><span class='line'>                    <span class="k">print</span> <span class="n">e</span>
+</span><span class='line'>                    <span class="k">pass</span>
+</span><span class='line'>
+</span><span class='line'>        <span class="k">else</span><span class="p">:</span>
+</span><span class='line'>            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">30</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+</code></pre>
+
+<p>抓取的主进程</p>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="k">def</span> <span class="nf">scrapy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span>    <span class="n">login_status</span> <span class="o">=</span> <span class="n">login</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">login_username</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">login_password</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cookies_file</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">if</span> <span class="n">login_status</span><span class="p">:</span>
+</span><span class='line'>
+</span><span class='line'>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_uid</span><span class="p">:</span>
+</span><span class='line'>            <span class="n">task_queue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">start_uid</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">uids_file</span><span class="p">:</span>
+</span><span class='line'>            <span class="n">uids_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__load_uids__</span><span class="p">()</span>
+</span><span class='line'>            <span class="k">for</span> <span class="n">uid</span> <span class="ow">in</span> <span class="n">uids_list</span><span class="p">:</span>
+</span><span class='line'>                <span class="n">task_queue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">uid</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>        <span class="k">else</span><span class="p">:</span> <span class="c">#start uid or uids file is needed</span>
+</span><span class='line'>            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&#39;ERROR: Start uid or uids file is needed.&#39;</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>        <span class="c">#spawn a pool of threads, and pass them queue instance </span>
+</span><span class='line'>        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">thread_number</span><span class="p">):</span>
+</span><span class='line'>            <span class="n">st</span> <span class="o">=</span> <span class="n">scrapy_threading</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scrapy_do_task</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">wanted</span><span class="p">)</span>
+</span><span class='line'>            <span class="n">st</span><span class="o">.</span><span class="n">setDaemon</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+</span><span class='line'>            <span class="n">st</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+</span><span class='line'>
+</span><span class='line'>
+</span><span class='line'>        <span class="n">task_queue</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span>
+</span></code></pre></td></tr></table></div></figure></p>
+
+<h4 id="section-2">3 抓取任务接口</h4>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'>  <span class="k">def</span> <span class="nf">scrapy_do_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uid</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+</span><span class='line'>        <span class="err">‘’’</span>
+</span><span class='line'>        <span class="n">User</span> <span class="n">needs</span> <span class="n">to</span> <span class="n">overwrite</span> <span class="n">this</span> <span class="n">method</span> <span class="n">to</span> <span class="n">perform</span> <span class="n">uid</span><span class="o">-</span><span class="n">based</span> <span class="n">scrapy</span> <span class="n">task</span><span class="o">.</span>
+</span><span class='line'>        <span class="nd">@param</span> <span class="n">uid</span><span class="p">:</span> <span class="n">weibo</span> <span class="n">uid</span>
+</span><span class='line'>        <span class="nd">@return</span><span class="p">:</span> <span class="n">a</span> <span class="nb">list</span> <span class="n">of</span> <span class="n">uids</span> <span class="n">gained</span> <span class="kn">from</span> <span class="nn">this</span> <span class="nn">task</span><span class="p">,</span> <span class="n">optional</span>
+</span><span class='line'>        <span class="err">‘’’</span>
+</span><span class='line'>        <span class="c">#return []</span>
+</span><span class='line'>        <span class="k">pass</span>
+</span></code></pre></td></tr></table></div></figure>
+以上是抓取任务的接口，WEIBO_SCRAPY暴露scrapy_do_task方法，用户只需要继承WEIBO_SCRAPY的scrapy类并且重写scrapy_do_task方法为自己的抓取业务逻辑。
+像前面提到过的一样，抓取任务是基于微博用户的UID的，所以scrapy_do_task方法有一个uid参数。</p>
+
+<h4 id="section-3">4 抓取参数配置</h4>
+<p>WEIBO_SCRAPY提供简单易用的账户信息配置和抓取参数配置，在<code>scrapy.ini</code>文件中即可轻松的完成参数的配置，以下是一个配置文件的样本：</p>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="p">[</span><span class="n">login_account_info</span><span class="p">]</span>
+</span><span class='line'><span class="c">#account info for logining weibo </span>
+</span><span class='line'><span class="n">login_username</span> <span class="o">=</span> <span class="n">ur_login_account_name_here</span>
+</span><span class='line'><span class="n">login_uid</span> <span class="o">=</span> <span class="n">weibo_uid_of_login_account_here</span>
+</span><span class='line'><span class="n">login_password</span> <span class="o">=</span> <span class="n">account_password_here</span>
+</span><span class='line'><span class="n">cookies_file</span> <span class="o">=</span> <span class="n">weibo_cookies</span><span class="o">.</span><span class="n">dat</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="p">[</span><span class="n">scrapy_settings</span><span class="p">]</span>
+</span><span class='line'><span class="n">thread_number</span> <span class="o">=</span> <span class="mi">50</span>
+</span><span class='line'><span class="n">wanted</span> <span class="o">=</span> <span class="mi">100000</span>
+</span><span class='line'><span class="c">#only one property of below 2 is required, and start_uid takes advantage of uids_file</span>
+</span><span class='line'><span class="c">#also note that arguments from constructor will overwrite this two properties </span>
+</span><span class='line'><span class="n">start_uid</span> <span class="o">=</span> <span class="mi">1197161814</span>
+</span><span class='line'><span class="n">uids_file</span> <span class="o">=</span>
+</span></code></pre></td></tr></table></div></figure>
+用户也可以在scrapy类的构造器中指定配置文件的位置。</p>
+
+<h3 id="weiboscrapy-3">WEIBO_SCRAPY的使用</h3>
+<p>使用WEIBO_SCRAPY用户只需要继承WEIBO_SCRAPY的scrapy类并且重写scrapy_do_task方法为自己的抓取业务逻辑。</p>
+
+<p>以下示例代码可在<a href="https://github.com/yoyzhou/weibo_scrapy/blob/master/example.py">weibo_scrapy/example.py</a>中找到。</p>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="c">#!/usr/bin/env python</span>
+</span><span class='line'><span class="c">#coding=utf8&lt;/p&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="kn">from</span> <span class="nn">weibo_scrapy</span> <span class="kn">import</span> <span class="n">scrapy</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="k">class</span> <span class="nc">my_scrapy</span><span class="p">(</span><span class="n">scrapy</span><span class="p">):</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span><span class="k">def</span> <span class="nf">scrapy_do_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uid</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+</span><span class='line'>     <span class="sd">&#39;&#39;&#39;</span>
+</span><span class='line'><span class="sd">    User needs to overwrite this method to perform uid-based scrapy task.</span>
+</span><span class='line'><span class="sd">    @param uid: weibo uid</span>
+</span><span class='line'><span class="sd">    @return: a list of uids gained from this task, optional</span>
+</span><span class='line'><span class="sd">    &#39;&#39;&#39;</span>
+</span><span class='line'>     <span class="nb">super</span><span class="p">(</span><span class="n">my_scrapy</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwds</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>     <span class="c">#do what you want with uid here, note that this scrapy is uid based, so make sure there are uids in task queue, </span>
+</span><span class='line'>     <span class="c">#or gain new uids from this function</span>
+</span><span class='line'>     <span class="k">print</span> <span class="s">&#39;WOW...&#39;</span>
+</span><span class='line'>     <span class="k">return</span> <span class="s">&#39;replace this string with uid list which gained from this task&#39;</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="k">if</span> <span class="o">&lt;</span><span class="n">strong</span><span class="o">&gt;</span><span class="n">name</span><span class="o">&lt;/</span><span class="n">strong</span><span class="o">&gt;</span> <span class="o">==</span> <span class="err">‘</span><span class="o">&lt;</span><span class="n">strong</span><span class="o">&gt;</span><span class="n">main</span><span class="o">&lt;/</span><span class="n">strong</span><span class="o">&gt;</span><span class="err">’</span><span class="p">:</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span><span class="n">s</span> <span class="o">=</span> <span class="n">my_scrapy</span><span class="p">(</span><span class="n">start_uid</span> <span class="o">=</span> <span class="s">&#39;1197161814&#39;</span><span class="p">)</span>
+</span><span class='line'><span class="n">s</span><span class="o">.</span><span class="n">scrapy</span><span class="p">()</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span>
+</span></code></pre></td></tr></table></div></figure></p>
+
+<h3 id="section-4">项目源代码</h3>
+<p>WEIBO_SCRAPY项目的源代码地址：<a href="https://github.com/yoyzhou/weibo_scrapy">weibo_scrapy</a>，<a href="https://github.com/yoyzhou/weibo_scrapy/fork">Fork it</a>。</p>
+
+<h3 id="section-5">相关阅读</h3>
+<p>1. <a href="/blog/2013/03/18/sina-weibo-login-simulator-in-python/">Python模拟登录新浪微薄（使用RSA加密方式和Cookies文件）</a></p>
+
+<p>2. <a href="/blog/2013/03/23/extract-data-with-beautifulsoup-taking-weibo-4-example/">使用Beautiful Soup抽取网页数据，解析微博用户关注信息</a></p>
+
+<p><code>---EOF---</code></p>
+
+<!-- PUT reference-style links below-->
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[使用Beautiful Soup抽取网页数据，解析微博用户关注信息]]></title>
+    <link href="http://yoyzhou.github.io/blog/2013/03/23/extract-data-with-beautifulsoup-taking-weibo-4-example/"/>
+    <updated>2013-03-23T17:14:00-07:00</updated>
+    <id>http://yoyzhou.github.io/blog/2013/03/23/extract-data-with-beautifulsoup-taking-weibo-4-example</id>
+    <content type="html"><![CDATA[<p>本文介绍了Beautiful Soup，PYTHON实现的HTML/XML标记的解析器；简要描述了Beautiful Soup的安装以及使用；最后以抽取微博用户关注信息为例详细的演示了如何使用Beautiful Soup。</p>
+
+<h3 id="beautiful-soup">什么是Beautiful Soup</h3>
+<p><a href="http://www.crummy.com/software/BeautifulSoup/">Beautiful Soup</a>是用PYTHON实现的HTML/XML标记的解析器。它提供简单和通用的方法对HTML/XML语法树进行浏览（navigating），搜索（searching）以及修改（searching）。它甚至可以针对不规范的标记生成语法树，可以大大地减少开发人员的时间。</p>
+
+<blockquote>
+  <p>Beautiful Soup is an HTML/XML parser for Python that can turn even invalid markup into a parse tree. It provides simple, idiomatic ways of navigating, searching, and modifying the parse tree. It commonly saves programmers hours or days of work. <cite><a href="http://www.crummy.com/software/BeautifulSoup/bs3/documentation.html">Beautiful Soup</a></cite></p>
+</blockquote>
+
+<h3 id="beautiful-soup-1">安装Beautiful Soup</h3>
+<p>安装Beautiful Soup很简单，如果你已经安装过pip或者easy_install,如果您还没有安装过Python安装工具，建议您参考<a href="/blog/2012/08/12/install-python-setuptools-slash-distribute-for-both-python2-and-python3/">Install Python Setuptools/Distribute for Python2 and Python3</a>。</p>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>sudo easy_install beautifulsoup4
+</span></code></pre></td></tr></table></div></figure>
+需要注意的是：BeautifulSoup4支持Python 2.x和3.x，而BeautifulSoup3只支持Python 2.x，Beautiful Soup官网建议大家应该使用BeautifulSoup4而不是BeautifulSoup3。</p>
+
+<blockquote>
+  <p>Beautiful Soup 3 only works on Python 2.x, but Beautiful Soup 4 also works on Python 3.x. Beautiful Soup 4 is faster, has more features, and works with third-party parsers like lxml and html5lib. You should use Beautiful Soup 4 for all new projects.</p>
+</blockquote>
+
+<h3 id="beautiful-soup-2">使用Beautiful Soup</h3>
+<p>首先，导入Beautiful Soup。</p>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="kn">from</span> <span class="nn">bs4</span> <span class="kn">import</span> <span class="n">BeautifulSoup</span>
+</span></code></pre></td></tr></table></div></figure>
+注意如果你使用的是BeautifulSoup3，那么导入语句可能是：</p>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="kn">from</span> <span class="nn">BeautifulSoup</span> <span class="kn">import</span> <span class="n">BeautifulSoup</span>
+</span></code></pre></td></tr></table></div></figure>
+然后，使用BeautifulSoup为你生成标记语言的语法树。</p>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="n">soup</span> <span class="o">=</span> <span class="n">BeautifulSoup</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="err">‘</span><span class="n">my</span><span class="o">.</span><span class="n">html</span><span class="err">’</span><span class="p">))</span>
+</span></code></pre></td></tr></table></div></figure>
+得到了语法树soup之后，就可以调用相应的接口浏览，搜索和修改你的标记文件。比如下面的语句搜索my.html中所有’action-type’是’user_item’的div：</p>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="n">soup</span><span class="o">.</span><span class="n">findAll</span><span class="p">(</span><span class="err">‘</span><span class="n">div</span><span class="err">’</span><span class="p">,</span> <span class="n">attrs</span><span class="o">=</span><span class="p">{</span><span class="err">‘</span><span class="n">action</span><span class="o">-</span><span class="nb">type</span><span class="err">’</span> <span class="p">:</span> <span class="err">‘</span><span class="n">user_item</span><span class="err">’</span><span class="p">})</span>
+</span></code></pre></td></tr></table></div></figure></p>
+
+<p>上面简单介绍了Beautiful Soup的安装和使用，更多Beautiful Soup的文档请参考官方文档<a href="http://www.crummy.com/software/BeautifulSoup/bs3/documentation.html">bs3</a>和<a href="http://www.crummy.com/software/BeautifulSoup/">bs4</a>。下面我们以从WEIBO.COM页面中解析出用户的关注信息为例，介绍Beautiful Soup的使用。</p>
+
+<h3 id="beautiful-soup-3">Beautiful Soup实例：解析微博用户的关注信息</h3>
+<p>社交网络中的关注信息（followings）是用户对什么人/东西感兴趣的一种表达，从关注信息中可以得到用户的兴趣偏好，又因为关注信息有用户自己维护，所以相对于粉丝（followers）信息更能体现个人偏好。以微博来说，关注就是用户关注的人，一般认为用户是根据自己的兴趣爱好出发有选择的关注帐号。</p>
+
+<p>微博中有两种关注，我的关注和他人的关注，由于这两种关注的页面结构不同，所以在解析的时候需要分别对待，但是分析的过程是同理的，只是在抽取数据是的页面标签不一样，使用上面的Beautiful Soup工具，抽取时标签的定位会很容易，这就是使用Beautiful Soup带来的好处。</p>
+
+<h4 id="inspect-element">1.使用浏览器的<code>Inspect Element</code>功能理解页面的结构</h4>
+
+<p>最新版的Chrome和Firefox都自身内置有<code>Inspect Element</code>功能，在编写代码时，可能要经常的使用它来定位要寻找的页面元素。Chrome浏览器<code>Inspect Element</code>的使用请参考<a href="https://developers.google.com/chrome-developer-tools/docs/elements">Chrome Developer Tools - Elements Panel</a>。
+<!-- more --></p>
+
+<h4 id="htmlbeautiful-soup">2.从页面中提取用户关注的HTML字段，构建Beautiful Soup对象</h4>
+
+<p>通过上面一步的分析，我们大致了解用户关注列表的页面结构，接下来就把页面文件/流导入到Beautiful Soup中，让它为我们生成页面结构树。可是当我们查看新浪微博页面源码的时候，情况却不是这样的，我们发现页面源码中很多信息并不是以HTML元素的形式呈现，而是以plain文本形式放到了页面的Javacript脚本里面，这时就更加凸显了Beautiful Soup的伟大之处了，只要我们在Script里面找到了相应的代码（实际上是json格式存放的数据），抽取出来再导入到Beautiful Soup中，这个问题也就迎刃而解。下面的正则表达式用来从页面中提取Script中的json数据并且使用其中的HTML字段生成soup：</p>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="k">def</span> <span class="nf">parse_followings</span><span class="p">(</span><span class="n">page_content</span><span class="p">):</span>
+</span><span class='line'>    <span class="err">‘’’</span>
+</span><span class='line'>    <span class="nd">@param</span> <span class="n">page_content</span><span class="p">:</span> <span class="n">html</span> <span class="n">page</span> <span class="nb">file</span> <span class="ow">or</span> <span class="n">response</span> <span class="n">stream</span> <span class="kn">from</span> <span class="nn">Internet</span>
+</span><span class='line'>    <span class="err">‘’’</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span><span class="c">#reguler expression to extract json data which contains html info</span>
+</span><span class='line'><span class="n">patt_view</span> <span class="o">=</span> <span class="s">&#39;&amp;lt;script&amp;gt;STK &amp;amp;&amp;amp; STK.pageletM &amp;amp;&amp;amp; STK.pageletM.view\((.*)\)&amp;lt;/script&amp;gt;&#39;</span>
+</span><span class='line'><span class="n">patt</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">patt_view</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">MULTILINE</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">weibo_scripts</span> <span class="o">=</span> <span class="n">patt</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="n">page_content</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">for</span> <span class="n">script</span> <span class="ow">in</span> <span class="n">weibo_scripts</span><span class="p">:</span>
+</span><span class='line'><span class="n">view_json</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">script</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">if</span> <span class="s">&#39;html&#39;</span> <span class="ow">in</span> <span class="n">view_json</span> <span class="ow">and</span> <span class="n">view_json</span><span class="p">[</span><span class="s">&#39;pid&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;pl_relation_hisFollow&#39;</span><span class="p">:</span>
+</span><span class='line'>        <span class="n">html</span> <span class="o">=</span> <span class="n">view_json</span><span class="p">[</span><span class="s">&#39;html&#39;</span><span class="p">]</span>
+</span><span class='line'>        <span class="n">soup</span> <span class="o">=</span> <span class="n">BeautifulSoup</span><span class="p">(</span><span class="n">html</span><span class="p">)</span>	<span class="c">#WOW...we got the soup</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span>
+</span></code></pre></td></tr></table></div></figure></p>
+
+<h4 id="beautiful-soup-4">3.通过Beautiful Soup获取需要的页面元素，并从中抽取感兴趣的信息</h4>
+
+<p>通过上一步获得following的HTML信息，导入到Beautiful Soup中，接下来就使用Beautiful Soup抽取信息了。如何去定位元素当然有很多方式，结合<code>Inspect Element</code>,可以很容易的做到，获得元素之后就可以抽取需要的信息了。</p>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">h1</span> <span class="nb">id</span><span class="o">=</span><span class="s">&quot;all-the-followings-search-according-element-typeli-and-attributes&quot;</span><span class="o">&gt;</span><span class="nb">all</span> <span class="n">the</span> <span class="n">followings</span><span class="p">,</span> <span class="n">search</span> <span class="n">according</span> <span class="n">element</span> <span class="nb">type</span><span class="p">(</span><span class="n">li</span><span class="p">)</span> <span class="ow">and</span> <span class="n">attributes</span><span class="o">&lt;/</span><span class="n">h1</span><span class="o">&gt;</span>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="n">friendollowings</span> <span class="o">=</span> <span class="n">soup</span><span class="o">.</span><span class="n">findAll</span><span class="p">(</span><span class="err">‘</span><span class="n">li</span><span class="err">’</span><span class="p">,</span> <span class="n">attrs</span><span class="o">=</span><span class="p">{</span><span class="err">‘</span><span class="n">class</span><span class="err">’</span><span class="p">:</span><span class="err">’</span><span class="n">clearfix</span> <span class="n">S_line1</span><span class="err">’</span><span class="p">,</span> <span class="err">‘</span><span class="n">action</span><span class="o">-</span><span class="nb">type</span><span class="err">’</span> <span class="p">:</span> <span class="err">‘</span><span class="n">itemClick</span><span class="err">’</span><span class="p">})</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="k">for</span> <span class="n">user_item</span> <span class="ow">in</span> <span class="n">friendollowings</span><span class="p">:</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span><span class="n">action_data</span> <span class="o">=</span> <span class="n">user_item</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;action-data&#39;</span><span class="p">)</span>
+</span><span class='line'><span class="n">user_info</span> <span class="o">=</span> <span class="p">{}</span>
+</span><span class='line'><span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">action_data</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;&amp;amp;&quot;</span><span class="p">):</span>
+</span><span class='line'>    <span class="n">field_name</span><span class="p">,</span> <span class="n">field_value</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;=&#39;</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">user_info</span><span class="p">[</span><span class="n">field_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">field_value</span>
+</span><span class='line'>
+</span><span class='line'>
+</span><span class='line'><span class="k">for</span>  <span class="n">info</span> <span class="ow">in</span>  <span class="p">[</span><span class="n">more</span> <span class="k">for</span> <span class="n">more</span> <span class="ow">in</span> <span class="n">user_item</span><span class="p">(</span><span class="s">&#39;div&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">more</span><span class="p">,</span> <span class="n">Tag</span><span class="p">)]:</span>
+</span><span class='line'>    <span class="n">class_name</span> <span class="o">=</span> <span class="n">info</span><span class="p">[</span><span class="s">&#39;class&#39;</span><span class="p">]</span>
+</span><span class='line'>    <span class="k">if</span> <span class="n">class_name</span> <span class="o">==</span> <span class="s">&#39;name&#39;</span><span class="p">:</span>
+</span><span class='line'>        <span class="n">user_info</span><span class="p">[</span><span class="s">&#39;name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">clean_content</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">a</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+</span><span class='line'>        <span class="n">user_info</span><span class="p">[</span><span class="s">&#39;address&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">clean_content</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">span</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+</span><span class='line'>    <span class="k">elif</span> <span class="n">class_name</span> <span class="o">==</span> <span class="s">&#39;connect&#39;</span><span class="p">:</span>
+</span><span class='line'>        <span class="n">user_info</span><span class="p">[</span><span class="s">&#39;connect&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">clean_content</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+</span><span class='line'>    <span class="k">elif</span> <span class="n">class_name</span> <span class="o">==</span> <span class="s">&#39;face mbspace&#39;</span><span class="p">:</span> <span class="c">#face image</span>
+</span><span class='line'>        <span class="n">user_info</span><span class="p">[</span><span class="s">&#39;face&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">a</span><span class="o">.</span><span class="n">img</span><span class="p">[</span><span class="s">&#39;src&#39;</span><span class="p">]</span>
+</span><span class='line'>    <span class="k">elif</span> <span class="n">class_name</span> <span class="o">==</span> <span class="s">&#39;weibo&#39;</span><span class="p">:</span>
+</span><span class='line'>        <span class="k">pass</span>
+</span><span class='line'>        <span class="c">#user_info[&#39;lasttweet&#39;] = clean_content(info.text)</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span>
+</span></code></pre></td></tr></table></div></figure></p>
+
+<h3 id="section">结束语</h3>
+<p>文中阐述了如何使用Beautiful Soup抽取微博页面的用户关注信息，最后有几点需要提出：
+1.模拟用户登录</p>
+
+<p>结合本人的上一篇文章<a href="/blog/2013/03/18/sina-weibo-login-simulator-in-python/">Python模拟登录新浪微博（使用RSA加密方式和Cookies文件）</a>，可以实现模拟用户登录之后发送用户关注的URL请求<code>http://weibo.com/{uid}/follow</code>获得用户关注的页面；</p>
+
+<p>2.分页抽取</p>
+
+<p>解析页面<code>http://weibo.com/{uid}/follow</code>可以获取用户关注的总页面数，通过<code>http://weibo.com/{uid}/follow?page={page_num}</code>可以实现分页抽取。</p>
+
+<h3 id="section-1">相关阅读</h3>
+
+<p>1. <a href="/blog/2013/03/18/sina-weibo-login-simulator-in-python/">Python模拟登录新浪微薄（使用RSA加密方式和Cookies文件）</a>,使用RSA2加密方式模拟登录SINA微博。</p>
+
+<p>2. <a href="/blog/2013/04/08/weibo-scrapy-framework-with-multi-threading/">基于UID的WEIBO信息抓取框架WEIBO_SCRAPY</a>，详细介绍了多线程WEIBO数据抓取框架WEIBO_SCRAPY。</p>
+
+<p><code>---EOF---</code></p>
+
+<!-- PUT reference-style links below-->
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Python模拟登录新浪微薄（使用RSA加密方式和Cookies文件）]]></title>
+    <link href="http://yoyzhou.github.io/blog/2013/03/18/sina-weibo-login-simulator-in-python/"/>
+    <updated>2013-03-18T21:15:00-07:00</updated>
+    <id>http://yoyzhou.github.io/blog/2013/03/18/sina-weibo-login-simulator-in-python</id>
+    <content type="html"><![CDATA[<p>本文简单介绍如何使用<a href="http://www.python.org/">PYTHON</a>模拟用户登录新浪微薄,文中使用的代码可以在<a href="https://github.com/yoyzhou/weibo_login">github.com/yoyzhou/weibo_login</a>中找到。</p>
+
+<h3 id="section">为什么要模拟登录</h3>
+<p>一般来说获取微薄数据的方式有两种，一种是使用WEIBO官方提供的API接口；另外一种方式就是从WEIBO网站页面上抓取数据。从网面上抓取数据，相对于使用WEIBO API更加灵活，可控性更强，不用受WEIBO API调用次数的限制；但是易受WEIBO页面结构变动的影响，使得程序可靠性低，不适合在生产系统中使用。</p>
+
+<blockquote>
+  <p>当然还有一种是由<strong>别人</strong>提供下载的，下载WEIBO数据可以考虑<a href="http://www.cnpameng.com/">爬盟中国</a>和<a href="http://www.datatang.com/">数据堂</a></p>
+</blockquote>
+
+<p>本文要讲的内容跟页面抓取数据有关，但是像<a href="weibo.com">WEIBO.COM</a>这样的<a href="http://en.wikipedia.org/wiki/SNS">SNS</a>网站必须事先登录之后才能访问到她的数据，所以如何模拟用户登录WEIBO，就成为从网页上抓取微薄数据的第一步。</p>
+
+<h3 id="section-1">模拟登录相关资源</h3>
+<p>目前网上有很多关于模拟用户登录WEIBO的文章:</p>
+
+<p>+ 使用<a href="https://addons.mozilla.org/en-us/firefox/addon/httpfox/">HTTPFOX</a>来侦测用户登录WEIBO.COM的过程<a href="http://blog.csdn.net/yonglaixiazaide/article/details/7923468">[1]</a>, <a href="http://www.jishuziyuan.com/archive/supeercrsky/8016047.html">[2]</a></p>
+
+<p>+ 模拟登录PHP<a href="http://blog.csdn.net/lgg201/article/details/8050606">[3]</a></p>
+
+<p>+ Python实现<a href="http://hi.baidu.com/enmzqbeadvfhiye/item/4018b4e7775cd3edfa42bad3">[4]</a>, <a href="http://www.cnblogs.com/mouse-coder/archive/2013/03/03/2941265.html">[5]</a></p>
+
+<p>+ JAVA实现<a href="http://marspring.mobi/http-client-weibo/">[6]</a></p>
+
+<p>其中<a href="http://hi.baidu.com/enmzqbeadvfhiye/item/4018b4e7775cd3edfa42bad3">[4] 新浪微博登录rsa加密方法</a>介绍了使用RSA2加密方式模拟登录，<a href="http://www.cnblogs.com/mouse-coder/archive/2013/03/03/2941265.html">[5] 模拟新浪微博登录（Python+RSA加密算法）</a>和<a href="http://marspring.mobi/http-client-weibo/">[6] httpclient登录新浪微博（非SDK方式）</a>分别给出了RSA加密算法模拟登录WEIBO的PYTHON和JAVA实现。</p>
+
+<blockquote>
+  <p>关于RSA加密方式，参考维基词条RSA<a href="http://zh.wikipedia.org/wiki/RSA%E5%8A%A0%E5%AF%86%E6%BC%94%E7%AE%97%E6%B3%95">[zh]</a>, <a href="http://en.wikipedia.org/wiki/RSA">[en]</a></p>
+</blockquote>
+
+<p>关注PYTHON实现的读者可以阅读下面关于此事的豆瓣讨论：</p>
+
+<blockquote>
+  <p>Python模拟新浪微薄登录的豆瓣讨论<a href="http://www.douban.com/note/201767245/">[7]</a></p>
+</blockquote>
+
+<h3 id="pythonrsa2cookies">Python+RSA2+Cookies实现模拟登录</h3>
+<p>由于新浪登录加密方式的改变，参见<a href="http://www.douban.com/note/201767245/">[7]</a>，这里仅介绍使用RSA加密方法登录，要使用RSA加密方式，必须安装RSA模块，所以：
+<!-- more --></p>
+
+<h4 id="pythonrsapython-rsahttpspypipythonorgpypirsa311">1.安装PYTHON实现的RSA加密算法模块<a href="https://pypi.python.org/pypi/rsa/3.1.1">python-rsa</a>.</h4>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="p">&amp;</span>gt<span class="p">;</span> easy_install rsa
+</span></code></pre></td></tr></table></div></figure>
+python-rsa的文档地址<a href="http://stuvel.eu/files/python-rsa-doc/index.html">http://stuvel.eu/files/python-rsa-doc/index.html</a></p>
+
+<h4 id="rsa">2.使用RSA加密用户登录密码</h4>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="k">def</span> <span class="nf">get_pwd_rsa</span><span class="p">(</span><span class="n">pwd</span><span class="p">,</span> <span class="n">servertime</span><span class="p">,</span> <span class="n">nonce</span><span class="p">):</span>
+</span><span class='line'>    <span class="err">“””</span>
+</span><span class='line'>        <span class="n">Get</span> <span class="n">rsa2</span> <span class="n">encrypted</span> <span class="n">password</span><span class="p">,</span> <span class="n">using</span> <span class="n">RSA</span> <span class="n">module</span> <span class="kn">from</span> <span class="nn">https</span><span class="p">:</span><span class="o">//</span><span class="n">pypi</span><span class="o">.</span><span class="n">python</span><span class="o">.</span><span class="n">org</span><span class="o">/</span><span class="n">pypi</span><span class="o">/</span><span class="n">rsa</span><span class="o">/</span><span class="mf">3.1</span><span class="o">.</span><span class="mi">1</span><span class="p">,</span> <span class="n">documents</span> <span class="n">can</span> <span class="n">be</span> <span class="n">accessed</span> <span class="n">at</span>
+</span><span class='line'>        <span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="n">stuvel</span><span class="o">.</span><span class="n">eu</span><span class="o">/</span><span class="n">files</span><span class="o">/</span><span class="n">python</span><span class="o">-</span><span class="n">rsa</span><span class="o">-</span><span class="n">doc</span><span class="o">/</span><span class="n">index</span><span class="o">.</span><span class="n">html</span>
+</span><span class='line'>    <span class="err">“””</span>
+</span><span class='line'>    <span class="c">#n, n parameter of RSA public key, which is published by WEIBO.COM</span>
+</span><span class='line'>    <span class="c">#Hardcoded here but you can also find it from values return from prelogin status above</span>
+</span><span class='line'>    <span class="n">weibo_rsa_n</span> <span class="o">=</span> <span class="err">‘</span><span class="n">EB2A38568661887FA180BDDB5CABD5F21C7BFD59C090CB2D245A87AC253062882729293E5506350508E7F9AA3BB77F4333231490F915F6D63C55FE2F08A49B353F444AD3993CACC02DB784ABBB8E42A9B1BBFFFB38BE18D78E87A0E41B9B8F73A928EE0CCEE1F6739884B9777E4FE9E88A1BBE495927AC4A799B3181D6442443</span><span class="err">’</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span><span class="c">#e, exponent parameter of RSA public key, WEIBO uses 0x10001, which is 65537 in Decimal</span>
+</span><span class='line'><span class="n">weibo_rsa_e</span> <span class="o">=</span> <span class="mi">65537</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">message</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">servertime</span><span class="p">)</span> <span class="o">+</span> <span class="s">&#39;</span><span class="se">\t</span><span class="s">&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">nonce</span><span class="p">)</span> <span class="o">+</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">pwd</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">#construct WEIBO RSA Publickey using n and e above, note that n is a hex string</span>
+</span><span class='line'><span class="n">key</span> <span class="o">=</span> <span class="n">rsa</span><span class="o">.</span><span class="n">PublicKey</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">weibo_rsa_n</span><span class="p">,</span> <span class="mi">16</span><span class="p">),</span> <span class="n">weibo_rsa_e</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">#get encrypted password</span>
+</span><span class='line'><span class="n">encropy_pwd</span> <span class="o">=</span> <span class="n">rsa</span><span class="o">.</span><span class="n">encrypt</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">#trun back encrypted password binaries to hex string</span>
+</span><span class='line'><span class="k">return</span> <span class="n">binascii</span><span class="o">.</span><span class="n">b2a_hex</span><span class="p">(</span><span class="n">encropy_pwd</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+</code></pre>
+
+<h4 id="cookies">3.验证用户登录是否成功，并且保存Cookies</h4>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'> <span class="n">data</span> <span class="o">=</span> <span class="n">urllib2</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span><span class="n">login_url</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+</span><span class='line'> <span class="c">#Verify login feedback, check whether result is TRUE</span>
+</span><span class='line'> <span class="n">patt_feedback</span> <span class="o">=</span> <span class="err">‘</span><span class="n">feedBackUrlCallBack</span><span class="p">((</span><span class="o">.*</span><span class="p">))</span><span class="err">’</span>
+</span><span class='line'> <span class="n">p</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">patt_feedback</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">MULTILINE</span><span class="p">)</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="n">feedback</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="n">feedback_json</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">feedback</span><span class="p">)</span>
+</span><span class='line'> <span class="k">if</span> <span class="n">feedback_json</span><span class="p">[</span><span class="err">‘</span><span class="n">result</span><span class="err">’</span><span class="p">]:</span>
+</span><span class='line'> 	<span class="n">cookie_jar2</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">cookie_file</span><span class="p">,</span><span class="n">ignore_discard</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">ignore_expires</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span> <span class="c">#Save Cookies</span>
+</span><span class='line'> 	<span class="k">return</span> <span class="mi">1</span>
+</span><span class='line'> <span class="k">else</span><span class="p">:</span>
+</span><span class='line'> 	<span class="k">return</span> <span class="mi">0</span>
+</span></code></pre></td></tr></table></div></figure></p>
+
+<h3 id="section-2">存在的问题</h3>
+<p>登入过程中返回ERROR-4049:需要输入验证码，这个问题在<a href="http://www.cnblogs.com/mouse-coder/archive/2013/03/03/2941265.html">[5] 模拟新浪微博登录（Python+RSA加密算法）</a>中也有提到。</p>
+
+<h3 id="section-3">源代码</h3>
+<p>文中代码片段的源码地址<a href="https://github.com/yoyzhou/weibo_login">github.com/yoyzhou/weibo_login</a></p>
+
+<h3 id="section-4">相关阅读</h3>
+
+<p>1. <a href="/blog/2013/03/23/extract-data-with-beautifulsoup-taking-weibo-4-example/">使用Beautiful Soup抽取网页数据，解析微博用户关注信息</a>，介绍如何使用Beautiful Soup抽取网页数据。</p>
+
+<p>2. <a href="/blog/2013/04/08/weibo-scrapy-framework-with-multi-threading/">基于UID的WEIBO信息抓取框架WEIBO_SCRAPY</a>，详细介绍了多线程WEIBO数据抓取框架WEIBO_SCRAPY。</p>
+
+<p><code>---EOF---</code></p>
+
+]]></content>
+  </entry>
+  
+</feed>

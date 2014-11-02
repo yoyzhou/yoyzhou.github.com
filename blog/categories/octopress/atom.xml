@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: octopress | Zhou's Blog]]></title>
+  <link href="http://yoyzhou.github.io/blog/categories/octopress/atom.xml" rel="self"/>
+  <link href="http://yoyzhou.github.io/"/>
+  <updated>2014-11-02T01:05:30-07:00</updated>
+  <id>http://yoyzhou.github.io/</id>
+  <author>
+    <name><![CDATA[yoyzhou]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[使用kramdown和MathJax给博客添加Latex支持]]></title>
+    <link href="http://yoyzhou.github.io/blog/2012/08/05/add-latex-support-for-octopress/"/>
+    <updated>2012-08-05T15:24:00-07:00</updated>
+    <id>http://yoyzhou.github.io/blog/2012/08/05/add-latex-support-for-octopress</id>
+    <content type="html"><![CDATA[<p><blockquote><p>kramdown (sic, not Kramdown or KramDown, just kramdown) is a free GPL-licensed Ruby library for parsing and converting a superset of Markdown.  It is completely written in Ruby, supports standard Markdown.</p><footer><strong>@kramdown</strong> <cite><a href='http://kramdown.rubyforge.org/index.html'>kramdown.rubyforge.org/&hellip;</a></cite></footer></blockquote></p>
+
+<h2 id="install-kramdown">Install kramdown</h2>
+<p>First of all make sure you have ruby installed on your box:</p>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ ruby –version # or
+</span><span class='line'>$ which ruby</span></code></pre></td></tr></table></div></figure>
+If command “which ruby” returns nothing, then you should install it first.</p>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ sudo apt-cache search ruby # to chech out the available ruby package
+</span><span class='line'>$ sudo apt-get install ruby[&lt;em>.&lt;/em>] # to install &lt;em>.&lt;/em> version of ruby</span></code></pre></td></tr></table></div></figure>
+Also you can use <a href="https://rvm.io/">RVM</a>, aka Ruby Version Manager, to install/manage your ruby entries, but actually I am not able to install ruby 1.9.2 approperately following the instruction from Octopress site on my PC which is <em>ubuntu 12.04</em>.</p>
+
+<p><figure class='code'><figcaption><span>Install kramdown </span></figcaption>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span>sudo gem install kramdown
+</span></code></pre></td></tr></table></div></figure></p>
+
+<h2 id="change-configyml-and-gemfile-to-include-kramdown">Change _config.yml and Gemfile to include kramdown</h2>
+<p>Change markdown engine to kramdown</p>
+
+<p><figure class='code'><figcaption><span>Change markdown engine to kramdown _config.yml </span></figcaption>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='yaml'><span class='line'><span class="p-Indicator">[</span><span class="nv">…</span><span class="p-Indicator">]</span>
+</span><span class='line'><span class="l-Scalar-Plain">markdown</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">kramdown</span>
+</span><span class='line'><span class="p-Indicator">[</span><span class="nv">…</span><span class="p-Indicator">]</span>
+</span></code></pre></td></tr></table></div></figure>
+<!-- more -->
+Add kramdown to Gemfile</p>
+
+<p><figure class='code'><figcaption><span>Add kramdown to Gemfile </span></figcaption>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>[…]
+</span><span class='line'>gem ‘pygments.rb’, ‘~&gt; 0.2.12’
+</span><span class='line'>gem ‘kramdown’, ‘~&gt; 0.13’
+</span><span class='line'>gem ‘RedCloth’, ‘~&gt; 4.2.9’
+</span><span class='line'>[…]</span></code></pre></td></tr></table></div></figure></p>
+
+<p>Next, install gem dependencies</p>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'>gem install bundler
+</span><span class='line'>bundle install
+</span></code></pre></td></tr></table></div></figure></p>
+
+<h2 id="add-mathjaxjs-to-headhtml">Add MathJax.js to head.html</h2>
+<p>So far, we have installed kramdown, and attach the dependency of kramdown to project, the last thing we have to do is including MathJax.js to your html head, since by default MathJax.js is not included in html head.</p>
+
+<p><figure class='code'><figcaption><span>Add MathJax </span></figcaption>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="nv">$ </span>vim <span class="o">[</span>repo-root<span class="o">]</span>/source/_includes/head.html <span class="c">#where repo-root is the repository root, optional. </span>
+</span><span class='line'><span class="nv">$ </span><span class="c">#add “&lt;script src=&quot;http://kramdown.rubyforge.org/MathJax/MathJax.js&quot; type=&quot;text/javascript&quot;&gt;&lt;/script&gt;” (without quote) to head.html </span>
+</span></code></pre></td></tr></table></div></figure>
+## Show Cases
+<script type="math/tex">% &lt;![CDATA[
+
+\begin{align}
+E & = mc^2 
+\end{align}
+ %]]&gt;</script></p>
+
+<script type="math/tex; mode=display">% &lt;![CDATA[
+
+\begin{align}
+F & = ma 
+\end{align}
+ %]]&gt;</script>
+
+<script type="math/tex; mode=display">% &lt;![CDATA[
+
+\begin{align}
+e^{i \pi} & = -1
+\end{align}
+ %]]&gt;</script>
+
+<p>And,</p>
+
+<script type="math/tex; mode=display">% &lt;![CDATA[
+
+\begin{align*}
+  & \phi(x,y) = \phi \left(\sum_{i=1}^n x_ie_i, \sum_{j=1}^n y_je_j \right)
+  = \sum_{i=1}^n \sum_{j=1}^n x_i y_j \phi(e_i, e_j) = \\
+  & (x_1, \ldots, x_n) \left( \begin{array}{ccc}
+      \phi(e_1, e_1) & \cdots & \phi(e_1, e_n) \\
+      \vdots & \ddots & \vdots \\
+      \phi(e_n, e_1) & \cdots & \phi(e_n, e_n)
+    \end{array} \right)
+  \left( \begin{array}{c}
+      y_1 \\
+      \vdots \\
+      y_n
+    \end{array} \right)
+\end{align*}
+ %]]&gt;</script>
+
+]]></content>
+  </entry>
+  
+</feed>

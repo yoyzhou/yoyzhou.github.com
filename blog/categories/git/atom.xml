@@ -1,0 +1,304 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: git | Zhou's Blog]]></title>
+  <link href="http://yoyzhou.github.io/blog/categories/git/atom.xml" rel="self"/>
+  <link href="http://yoyzhou.github.io/"/>
+  <updated>2014-11-02T01:05:30-07:00</updated>
+  <id>http://yoyzhou.github.io/</id>
+  <author>
+    <name><![CDATA[yoyzhou]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Git Fundamentals - Branch: Learning Notes of Pro Git]]></title>
+    <link href="http://yoyzhou.github.io/blog/2012/08/11/git-fundamentals-learning-notes-of-pro-git-part2/"/>
+    <updated>2012-08-11T16:15:00-07:00</updated>
+    <id>http://yoyzhou.github.io/blog/2012/08/11/git-fundamentals-learning-notes-of-pro-git-part2</id>
+    <content type="html"><![CDATA[<h2 id="branch">分支(BRANCH)</h2>
+
+<p>Surround your pullquote like this {&#8221; text to be quoted &#8220;}</p>
+
+<p>下面我们介绍git分支的一般操作：  </p>
+
+<h3 id="git-branch-branch-name">git branch &lt;branch-name&gt;</h3>
+<p>从当前提交点创建一个新的分支<br />
+git branch myBranch  </p>
+
+<h3 id="git-checkout-branch-name">git checkout &lt;branch-name&gt;</h3>
+<p>切换当前工作目录到某一分支，当你切换到分支时，git的HEAD指针就指向了你切换到的分支，这样里就能够在另外的分支里工作了，这里HEAD就是标志当前工作分支的一个指针。<br />
+git checkout myBranch</p>
+
+<p>有一个快捷的方式创建一个新分支并切换到该分支<br />
+git checkout -b myBranch<br />
+这条命令就相当于执行了上面两条命令。  </p>
+
+<p>讲完基本的创建分支和检出分支操作之后，将介绍合并(merge)操作。  </p>
+
+<h3 id="git">git中合并有两种方式：快进合并和三方合并</h3>
+
+<p>1 快进合并(Fast Forward): 当你想要并入(merge in)的分支是并进(merge into)分支的直接下游时，git采用快进的合并方式，如：<br />
+C0 &lt;&#8211; C1 &lt;&#8211; C2 &lt;&#8211; C3 &lt;&#8211; C4 <br />
+                 |               |      <br />
+               master           myBranch <br />
+当我们打算将myBranch(merge in branch)并入master(merge into branch)分支时，由于myBranch是master的直接下游，git只需将指针直接右移到C4，这就相当于快进了。<br />
+具体操作如下：<br />
+	git checkout master #切换到master分区
+	git meger myBranch #合并myBranch分区到master分区</p>
+
+<p>2 三方合并(Recursive Merge): 当并入分区和并进分区不再是直接的上下游时，即出现了分叉，git将找出两者的共同祖先提交使用三方合并。</p>
+
+<h3 id="section">合并冲突</h3>
+
+<p>合并产生冲突时，git会提示产生冲突的文件，只有冲突解决之后，merge才能完成，实际上是用户手动处理冲突之后提交冲突文件。
+<!-- more -->
+##分支的管理</p>
+
+<h3 id="git-branch">git branch</h3>
+
+<p>不加任何参数，列出当前所有分支</p>
+
+<h3 id="git-branch--v">git branch -v</h3>
+
+<p>加参数 -v 列出所有分支，并且显示每一个分支最后一次commit的信息</p>
+
+<h3 id="git-branch---merge">git branch –merge</h3>
+
+<p>查看哪些分支已经被并入当前分支</p>
+
+<h3 id="git-branch---no-merge">git branch –no-merge</h3>
+
+<p>查看哪些分支没有并入当前分支</p>
+
+<h3 id="git-branch--d-branch-name">git branch -d &lt;branch-name&gt;</h3>
+
+<p>删除分支,但是当分支包含未被并入的工作时删除分支将导致失败，不过如果你坚信要删除该分支可以使用:<br />
+git branch -D &lt;branch-name&gt;</p>
+
+<h2 id="remote-branch">远程分支(Remote Branch)</h2>
+
+<p>远程分支(remote branch)是对远程仓库状态的索引。它们是一些无法移动的本地分支;只有在进行 Git的网络活动时才会更新。远程分支就像是书签,提醒着你上次连接远程仓库时上面各分支的位置。 <br />
+远程分支使用<strong>&lt;remote-repos-name&gt;/&lt;remote-branch-name&gt;</strong>来表示，例如常见的远程分支：<strong>origin/master</strong><br />
+如果你没有和网络中远程分支进行通讯，本地的远程分支始终指向上一次通讯时的位置，并不能得到更新。进一步，当你的同事更新了远程分支，服务器中的远程分支将是你同事的版本，而你本地的远程分支并没有得到更新！当你需要推送(将在后面讲到)你的工作到服务器时，注意这是服务器中的版本已经发生了改变，你必须先拉取远程分支中的更新到你的本地分支，再进行推送操作。拉取操作我们前面讲过是git fetch &lt;remote-name&gt;。  </p>
+
+<h3 id="push">推送(push)</h3>
+
+<p>要想和其他人分享某个分支,你需要把它推送到一个你拥有写权限的远程仓库。<br />
+git push &lt;remote-repos-name&gt; &lt;branch-name&gt;<br />
+如果你有个叫funstaff的分支需要和他人一起开发,可以运行：<br />
+git push origin funstaff  </p>
+
+<p>这样当你的同伴想要合并你的funstaff分支到当前分支的话，可以使用：<br />
+git merge origin/funstaff
+或者新建一个分支，独立继续开发： <br />
+git checkout -b myFunStaff origin/funstaff</p>
+
+<h3 id="section-1">跟踪分支</h3>
+<p>从远程分支检出的本地分支,称为跟踪分支(tracking branch)。在跟踪分支里输入这些分支里运行git push, Git会自行推断应该向哪个服务器的哪个分支推送数据。
+上面的列子我们可以使用下面的命令：
+git checkout –track origin/funstaff</p>
+
+<h2 id="rebase">衍合(rebase)</h2>
+
+<p>git checkout myBranch<br />
+git rebase master<br />
+<em>rebase命令,可以把在一个分支里提交的改变在另一个分支里重放一遍。</em><br />
+衍合的金科玉律：</p>
+
+<p><blockquote><p><br /><br/>永远不要衍合那些已经推送到公共仓库的更新。<br /></p></blockquote></p>
+
+<h2 id="references">References</h2>
+<p><a href="http://git-scm.com/2010/06/09/pro-git-zh.html">Pro Git 简体中文版</a>  </p>
+
+<p><a href="http://git-scm.com/book">Pro Git Enlish Edition</a></p>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Git Fundamentals: Learning Note of Pro Git]]></title>
+    <link href="http://yoyzhou.github.io/blog/2012/08/09/git-fundamentals-learning-note-of-pro-git/"/>
+    <updated>2012-08-09T22:30:00-07:00</updated>
+    <id>http://yoyzhou.github.io/blog/2012/08/09/git-fundamentals-learning-note-of-pro-git</id>
+    <content type="html"><![CDATA[<h2 id="git">git基础</h2>
+
+<h3 id="git-1">git优点</h3>
+<pre><code>1 直接快照,而非比较差异
+不像集中式版本管理系统那样只记录不同版本之间的Deta, 而是直接快照整个项目文件，这使得Git更像是一个文件系统
+
+2 近乎所有操作都可本地执行
+
+3 时刻保持数据完整性
+通过数据内容校验和计算(checksum)
+
+4 多数操作仅添加数据
+</code></pre>
+
+<h3 id="git-2">git配置文件的类型和位置</h3>
+
+<pre><code>/etc/gitconfig 系统级别的git的配置文件 通过 git config --system 选项指定进行配置
+
+
+～/.gitconfig 用户级别的配置文件 通过 git config --global 选项指定进行配置
+
+
+.git/config(当前工作项目目录下) 项目级别的配置文件
+</code></pre>
+
+<h2 id="git-3">git命令</h2>
+
+<h3 id="git-init">git init</h3>
+<p>初始化git仓库</p>
+
+<h3 id="git-status">git status</h3>
+<p>查看git repos库状态<br />
+status的形式:未跟踪，未修改，修改，暂存<br />
+运行了git add之后又作了修订的文件,需要重新运行git add把最新版本重新暂存起来。</p>
+
+<h4 id="git-4">演示git仓库中文件状态的例子</h4>
+<pre><code>1.vim &lt;file&gt; -- untracked v0  
+2.git add &lt;file&gt; -- tracked &amp; staged v0  
+3.git commit -m '' -- version v0  
+4.vim &lt;file&gt; -- tracked &amp; modified &amp; staged v0  
+5.git add &lt;file&gt; -- tracked &amp; staged v1  
+6.vim &lt;file&gt; -- tracked &amp; modified &amp; staged v1  
+7.git commit -m '' -- version v1  
+</code></pre>
+
+<h3 id="git-diff">git diff</h3>
+<p>–查看尚未暂存文件更新了什么，即查看工作目录中当前文件与暂存区快照之间的差异。用上面的例子来说，假设我们在第4步后面执行git diff, 这个命令查看的将是文件&lt;file&gt;在第4步[修改过但是还未暂存]与第3步[Staged v0]的差异  </p>
+
+<h3 id="git-diff---cached--staged">git diff –cached/–staged</h3>
+<p>查看已经暂存起来的文件和上次提交时的快照之间的差异。还是用上面的例子，假设我们在第7步后面执行命令git diff –staged，将查看文件&lt;file&gt;在第5步[Staged v1]和第3步[Version v0]之间的变化</p>
+
+<h3 id="git-commit--m-message-for-commit">git commit -m ‘message for commit…’</h3>
+<p>在之进行commit之前,一定要确认还有什么修改过的或新建的文件还没有git add过,否则提交的时候不会记录这些还没暂存起来的变化。所以,每次准备提交前,先用下,是不是都已暂存起来了,然后再运行提交命令git status看是不是都已经暂存起来了，然后再执行命令git commit。</p>
+
+<h3 id="git-rm-file">git rm &lt;file&gt;</h3>
+<p>Remove file(s) from git’s tracking list, meanwhile delete the file(s)</p>
+
+<h3 id="git-rm---cached-file">git rm –cached &lt;file&gt;</h3>
+<p>Remove file(s) from git’s tracking list, but keep file(s) as cached, file(s) will not be removed.</p>
+
+<h3 id="git-mv-filefrom-fileto">git mv file_from file_to</h3>
+<p>Move file in git repos, equals to:</p>
+
+<pre><code>1 mv file_from file_to  
+2 git rm file_from  
+3 git add file_to  
+</code></pre>
+
+<h3 id="git-log--options">git log [-options]</h3>
+<p>View commit history<br />
+-p 展开每一次提交的diffs<br />
+-n 仅显示最近n次提交<br />
+–stat 显示每次提交的文件修改统计信息<br />
+–pretty 指定显示格式，oneline、short、full、fuller和format(后面指定格式)<br />
+–since 从什么时间开始<br />
+etc. 更多选项请使用 git log –help</p>
+
+<h3 id="git-commit---amend">git commit –amend</h3>
+<p>进行重新提交操作，可修改上一次提交的commit comment或者添加忘记staged的更新</p>
+
+<h3 id="git-reset-head-file">git reset HEAD &lt;file&gt;</h3>
+<p>撤销对文件&lt;file&gt;的暂存操作，比如你需要对某一个文件进行单独提交时，可以：<br />
+	git add . #将所有的文件暂存<br />
+	git reset HEAD &lt;file&gt; #撤销对某文件的暂存<br />
+	git commit -m ‘commit message’<br />
+	git add &lt;file&gt;<br />
+	[可能的文件&lt;file&gt;的修改]<br />
+	git commit &lt;file&gt; -m ‘commit &lt;file&gt; seperately’  </p>
+
+<h3 id="git-checkout---file">git checkout –&lt;file&gt;</h3>
+<p>取消对文件的修改，慎用。此命令将文件恢复到文件修改前的版本/暂存区内容，工作目录中所有对该文件的修改都将丢失。<br />
+在git 1.7.9.5中测试可省略“–”直接使用git checkout &lt;file&gt;</p>
+
+<h2 id="git-5">git远程仓库</h2>
+
+<h3 id="git-remote--v">git remote -v</h3>
+<p>查看远程库信息 -v选项显示远程库地址<br />
+<!-- MORE --></p>
+
+<h3 id="git-remote-add-options-short-name-git-url">git remote add [&lt;options&gt;] &lt;short name&gt; &lt;git url&gt;</h3>
+
+<p>添加一个远程库, &lt;short name&gt; 可以为远程库选一个简短的名字; &lt;git url&gt;远程库的git项目URL, e.g. <br />
+	git remote add pb git://github.com/paulboone/ticgit.git    </p>
+
+<h3 id="git-fetch-remote-name">git fetch [remote-name]</h3>
+<p>从远程仓库抓取数据，e.g.:
+	 git fetch pb #命令会到远程仓库pb中拉取所有你本地仓库中还没有的数据。<br />
+注：当你使用 git clone命令克隆一个远程库时，默认会创建一个origin的remote repository，当使用 git fetch origin 实际上是拉取从你上一次clone以来别人传到此远程仓库的所有更新<br />
+NOTE：fetch 命令只是将远端的数据拉到本地仓库,并不自动合并到当前工作分支,只有当你确实准备好了,才能手工合并。  </p>
+
+<h3 id="git-push-remote-name-branch-name">git push [remote-name] [branch-name]</h3>
+<p>推送数据到远程仓库<br />
+[remote-name] 为远程仓库名称，origin或者你使用git remote add 命令添加的远程仓库<br />
+[branch-name] 本地分支名称, e.g. <br />
+	git push origin master #将本地的master分支推送到origin服务器上  </p>
+
+<h3 id="git-remote-show-remote-name">git remote show &lt;remote-name&gt;</h3>
+<p>查看远程仓库的信息, e.g.<br />
+	git remote show origin  </p>
+
+<h3 id="git-remote-rename-old-remote-name-new-remote-name">git remote rename &lt;old-remote-name&gt; &lt;new-remote-name&gt;</h3>
+<p>重命名远程仓库名称</p>
+
+<h3 id="git-remote-rm-remote-name">git remote rm &lt;remote-name&gt;</h3>
+<p>删除远程仓库</p>
+
+<h2 id="git-6">git标签</h2>
+
+<h3 id="git-tag">git tag</h3>
+<p>显示当前项目中的所有标签</p>
+
+<h3 id="git-tab--l-expression">git tab -l ‘&lt;expression&gt;’</h3>
+<p>显示符合检索表达式的标签，e.g.
+git tag -l ‘v1.0.*’</p>
+
+<h3 id="git-tag--a-tag-name--m-tag-message">git tag -a &lt;tag-name&gt; -m ‘tag message’</h3>
+<p>新建一个含附注的(annotated)标签, e.g.<br />
+git tag -a v1.0.1 -m ‘version 1.0.1’  </p>
+
+<h3 id="git-tag--a-tag-name-checksum">git tag -a &lt;tag-name&gt; &lt;checksum&gt;</h3>
+<p>为某一次提交补上标签，提交的检验和可以使用前面的git log进行查看</p>
+
+<h3 id="git-show-tag-name">git show &lt;tag-name&gt;</h3>
+<p>显示标签信息<br />
+git show v1.0.1</p>
+
+<h3 id="git-push-remote-name-tag-name">git push [remote-name] &lt;tag-name&gt;</h3>
+<p>推送/分享某一个标签版本，而不是本地分支<br />
+git push origin v1.0.1  </p>
+
+<h2 id="git-">git 使用技巧</h2>
+
+<h3 id="tab">添加tab自动补全功能</h3>
+<pre><code>1 clone git源码库  
+	git clone git://github.com/git/git.git  
+2 cp contrib/completion/git-completion.bash ~/.git-completion.bash  
+3 source ~/.git-completion.bash #添加.git-completion.bash到你的.bashrc文件中。
+</code></pre>
+
+<p>如果你不想克隆git源码库可以直接从git源码库中下载单个<a href="https://raw.github.com/git/git/master/contrib/completion/git-completion.bash">git-completion.bash</a>文件,再进行复制和source操作。</p>
+
+<h3 id="git-7">添加git命令别名</h3>
+<p>e.g.</p>
+
+<pre><code>git config --global alias.co checkout 
+git config --global alias.st status  etc.
+</code></pre>
+
+<h2 id="references">References</h2>
+<p><a href="http://git-scm.com/2010/06/09/pro-git-zh.html">Pro Git 简体中文版</a>  </p>
+
+<p><a href="http://git-scm.com/book">Pro Git Enlish Edition</a></p>
+
+<p>&lt;To be continued…&gt;</p>
+
+]]></content>
+  </entry>
+  
+</feed>

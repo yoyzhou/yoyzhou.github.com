@@ -1,0 +1,474 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!-->
+<html class="no-js" lang="zh-CN"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Adding Filter in Hadoop Mapper Class - Zhou&#8217;s Blog</title>
+  <meta name="author" content="yoyzhou">
+  <!--[if lt IE 9]>
+    <script src="http://x.papaapp.com/farm1/a571d2/8dda131d/html5shiv.js"></script>
+    <![endif]-->
+  
+  <meta name="description" content="There is my solutions to tackle the disk spaces shortage problem I described in the previous post. The core principle of the solution is to reduce &hellip;">
+  <meta name="keywords" content="Hadoop, MapReduce, Bigdata Analytic, Weibo, Mapper, Reduce, Outputs, Aanlysis, Disk Space">
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://yoyzhou.github.io/blog/2013/04/21/adding-filter-in-hadoop-mapper-class/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script type="text/javascript" src="http://t.papaapp.com/js/libs/jquery/1.7.2/jquery.js"></script>
+   <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <script src="/javascripts/modernizr-2.0.js"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+	      jax: ["input/TeX", "output/HTML-CSS"],
+		  tex2jax: {
+		  inlineMath: [ ['$', '$'], ["\\(", "\\)"] ],
+		  displayMath: [ ['$$', '$$'], ["\\[", "\\]"] ],
+		  processEscapes: true,
+		  skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+		}}
+   );
+</script>
+<script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML" type="text/javascript"></script>
+<script src="/javascripts/ender.js"></script>
+<script src="/javascripts/octopress.js" type="text/javascript"></script>
+<link href="/atom.xml" rel="alternate" title="Zhou's Blog" type="application/atom+xml">
+
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-34034666-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <header id="header" class="clearfix">    <div class="container">
+        <div class="col-group">
+            <div class="site-name ">
+                <a id="logo" href="/">
+                   Zhou&#8217;s Blog
+                </a>
+                <p class="description">There is no truth as such, there is only truth from a point of view [Nietzsche]</p>
+            </div>
+            <div>
+                <nav id="nav-menu" class="clearfix">
+                    <a class="index-nav current" href="/">Blog</a>
+<a class="archives-nav" href="/blog/archives">Archives</a>
+                </nav>
+            </div>
+        </div>
+    </div>
+</header>
+  <div id="body">
+    <div class="container">
+    	<div class="col-group">
+			<div class="col-8" id="main">
+  <div class="res-cons">
+  <article class="post clearfix">
+  
+  <header>
+    
+      <h1 class="post-title">Adding Filter in Hadoop Mapper Class</h1>
+    
+    
+      <p class="post-meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-04-21T15:08:00-07:00" pubdate data-updated="true"></time>
+        
+         | <a href="#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+<div class="post-content"><p>There is my solutions to tackle the disk spaces shortage problem I described in the <a href="/blog/2013/04/20/my-first-luckily-and-sad-hadoop-results/">previous post</a>. The core principle of the solution is to reduce the number of output records at Mapper stage; the method I used is <strong>Filter</strong>, adding a filter, which I will explain later, to decrease the output records of Mapper, which in turn significantly decrease the Mapper’s Spill records, and fundamentally decrease the disk space usages. After applying the filter, with 30,661 records. some 200MB data set as inputs, the total Spill Records is 25,471,725,  and it <strong>only</strong> takes about 509MB disk spaces!</p>
+
+<h4 id="followed-filter">Followed Filter</h4>
+
+<p>And now I’m going to reveal what’s kinda Filter it looks like, and how did I accomplish that filter.
+The true face of the <strong>FILTER</strong> is called  <strong>Followed Filter</strong>, it filters users from computing co-followed combinations if their followed number does not satisfy a certain number, called <strong>Followed Threshold</strong>. </p>
+
+<p>Followed Filter is used to reduce the co-followed combinations at Mapper stage. Say we set the followed threshold to 100, meaning users who doesn’t own 100 fans(be followed by 100 other users) will be ignored during co-followed combinations computing stage(to get the actual number of the threshold we need analyze statistics of user’s followed number of our data set).</p>
+
+<h4 id="reason">Reason</h4>
+
+<p>Choosing followed filter is reasonable because how many user follows is a metric of user’s popularity/famousness.</p>
+
+<h4 id="how">HOW</h4>
+
+<p>In order to accomplish it, we need:</p>
+
+<p><strong>First</strong>, counting user’s followed number among our data set, which needs a new MapReduce Job;</p>
+
+<p><strong>Second</strong>, choosing a followed threshold after analyze the statistics perspective of followed number data set got in first step;</p>
+
+<p><strong>Third</strong>, using DistrbutedCache of Hadoop to cache users who satisfy the filter to all Mappers;</p>
+
+<p><strong>Forth</strong>, adding followed filter to Mapper class, only users satisfy filter condition will be passed into co-followed combination computing phrase;</p>
+
+<p><strong>Fifth</strong>, adding co-followed filter/threshold in Reducer side if necessary.</p>
+
+<h4 id="outcomes">Outcomes</h4>
+<p>Here is the Hadoop Job Summary, after applying the followed filter with followed threshold of 1000, that means only users who are followed by 1000 users will have the opportunity to co-followed combinations, compared with the Job Summary in my previous post, most all metrics have significant improvements:</p>
+
+<table>
+  <tbody>
+    <tr>
+      <td>Counter</td>
+      <td>Map</td>
+      <td>Reduce</td>
+      <td>Total</td>
+    </tr>
+    <tr>
+      <td>Bytes Written</td>
+      <td>0</td>
+      <td>1,798,185</td>
+      <td>1,798,185</td>
+    </tr>
+    <tr>
+      <td>Bytes Read</td>
+      <td>203,401,876</td>
+      <td>0</td>
+      <td>203,401,876</td>
+    </tr>
+    <tr>
+      <td>FILE_BYTES_READ</td>
+      <td>405,219,906</td>
+      <td>52,107,486</td>
+      <td>457,327,392</td>
+    </tr>
+    <tr>
+      <td><strong><em>HDFS_BYTES_READ</em></strong></td>
+      <td><strong><em>203,402,751</em></strong></td>
+      <td>0</td>
+      <td>203,402,751</td>
+    </tr>
+    <tr>
+      <td><strong><em>FILE_BYTES_WRITTEN</em></strong></td>
+      <td>457,707,759</td>
+      <td>52,161,704</td>
+      <td><strong><em>509,869,463</em></strong></td>
+    </tr>
+    <tr>
+      <td>HDFS_BYTES_WRITTEN</td>
+      <td>0</td>
+      <td>1,798,185</td>
+      <td>1,798,185</td>
+    </tr>
+    <tr>
+      <td>Reduce input groups</td>
+      <td>0</td>
+      <td>373,680</td>
+      <td>373,680</td>
+    </tr>
+    <tr>
+      <td>Map output materialized bytes</td>
+      <td>52,107,522</td>
+      <td>0</td>
+      <td>52,107,522</td>
+    </tr>
+    <tr>
+      <td>Combine output records</td>
+      <td>22,202,756</td>
+      <td>0</td>
+      <td>22,202,756</td>
+    </tr>
+    <tr>
+      <td><strong><em>Map input records</em></strong></td>
+      <td><strong><em>30,661</em></strong></td>
+      <td>0</td>
+      <td>30,661</td>
+    </tr>
+    <tr>
+      <td>Reduce shuffle bytes</td>
+      <td>0</td>
+      <td>52,107,522</td>
+      <td>52,107,522</td>
+    </tr>
+    <tr>
+      <td>Physical memory (bytes) snapshot</td>
+      <td>2,646,589,440</td>
+      <td>116,408,320</td>
+      <td>2,762,997,760</td>
+    </tr>
+    <tr>
+      <td><strong><em>Reduce output records</em></strong></td>
+      <td>0</td>
+      <td><strong><em>373,680</em></strong></td>
+      <td>373,680</td>
+    </tr>
+    <tr>
+      <td><strong><em>Spilled Records</em></strong></td>
+      <td><strong><em>22,866,351</em></strong></td>
+      <td>2,605,374</td>
+      <td>25,471,725</td>
+    </tr>
+    <tr>
+      <td>Map output bytes</td>
+      <td>2,115,139,050</td>
+      <td>0</td>
+      <td>2,115,139,050</td>
+    </tr>
+    <tr>
+      <td>Total committed heap usage (bytes)</td>
+      <td>2,813,853,696</td>
+      <td>84,738,048</td>
+      <td>2,898,591,744</td>
+    </tr>
+    <tr>
+      <td>CPU time spent (ms)</td>
+      <td>5,766,680</td>
+      <td>11,210</td>
+      <td>5,777,890</td>
+    </tr>
+    <tr>
+      <td>Virtual memory (bytes) snapshot</td>
+      <td>9,600,737,280</td>
+      <td>1,375,002,624</td>
+      <td>10,975,739,904</td>
+    </tr>
+    <tr>
+      <td>SPLIT_RAW_BYTES</td>
+      <td>875</td>
+      <td>0</td>
+      <td>875</td>
+    </tr>
+    <tr>
+      <td><strong><em>Map output records</em></strong></td>
+      <td><strong><em>117,507,725</em></strong></td>
+      <td>0</td>
+      <td>117,507,725</td>
+    </tr>
+    <tr>
+      <td>Combine input records</td>
+      <td>137,105,107</td>
+      <td>0</td>
+      <td>137,105,107</td>
+    </tr>
+    <tr>
+      <td>Reduce input records</td>
+      <td>0</td>
+      <td>2,605,374</td>
+      <td>2,605,374</td>
+    </tr>
+  </tbody>
+</table>
+
+<h4 id="ps">P.S.</h4>
+<p>Frankly Speaking, chances are <strong>I am on the wrong way to Hadoop Programming</strong>, since I’m palying <code>Pesudo Distribution Hadoop</code> with my personal computer, which has 4 CUPs and 4G RAM, in real Hadoop Cluster disk spaces might never be a trouble, and all the tuning work I have done may turn into meaningless efforts. Before the Followed Filter, I also did some Hadoop tuning like customed Writable class, RawComparator, block size and io.sort.mb, etc.</p>
+
+<p><code>---EOF---</code></p>
+
+</div>
+
+
+  <footer class="post-footer">
+    <div class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">yoyzhou</span></span>
+ under 
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/analytic/'>analytic</a>, <a class='category' href='/blog/categories/bigdata/'>bigdata</a>, <a class='category' href='/blog/categories/hadoop/'>hadoop</a>, <a class='category' href='/blog/categories/mapreduce/'>mapreduce</a>
+  
+</span>
+
+
+    </div>
+    
+      <div class="sharing">
+  
+  
+  
+</div>
+
+    
+    <div class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2013/04/14/steps-of-programming-hadoop-with-eclipse/" title="Previous Post: 使用Eclipse开发MapReduce程序的步骤">&laquo; 使用Eclipse开发MapReduce程序的步骤</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2013/04/28/studying-notes-a-set-of-measures-of-centrality-based-on-betweenness/" title="Next Post: A Set of Measures of Centrality Based on Betweenness">A Set of Measures of Centrality Based on Betweenness &raquo;</a>
+      
+    </div>
+  </footer>
+</article>
+
+  <section>
+    <h3>Comments</h3>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+  </div>
+</div>
+
+  <aside id="secondary">
+  
+    
+<section class="widget">
+	<h3 class="widget-title">About Me</h3>
+	<p><code style="font-size: 14px;">Writing is the best way of learning</code></p>
+</section>
+<section class="widget">
+	<h3 class="widget-title">Recent Posts</h3>
+	<ul class="widget-list">
+		
+     	<li>
+      	  <a href="/blog/2013/06/04/mahout-clustering-with-hadoop/">在Hadoop上运行Mahout KMeans聚类分析</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/26/clustering-with-mahout/">Mahout与聚类分析</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/13/hadoop-write-ur-own-rawcomparator/">使用RawComparator加速Hadoop程序</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/10/hadoop-serialization-and-writable-object-2/">Hadoop序列化与Writable接口(二)</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/09/hadoop-serialization-and-writable-object-1/">Hadoop序列化与Writable接口(一)</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/29/viz-following-networks-of-weibo-celebrities/">微博名人关注网络的社会网络分析</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/29/a-kinda-betweenness-centrality-algorithm/">A Kinda Betweenness Centrality Algorithm</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/28/studying-notes-a-set-of-measures-of-centrality-based-on-betweenness/">A Set of Measures of Centrality Based on Betweenness</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/21/adding-filter-in-hadoop-mapper-class/">Adding Filter in Hadoop Mapper Class</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/14/steps-of-programming-hadoop-with-eclipse/">使用Eclipse开发MapReduce程序的步骤</a>
+      	</li>
+    	
+	</ul>
+</section>
+
+<section class="widget">
+  <h3>GitHub Repos</h3>
+  <ul id="gh_repos" class="widget-list">
+    <li class="loading">Status updating&#8230;</li>
+  </ul>
+  
+  <a href="https://github.com/yoyzhou">@yoyzhou</a> on GitHub
+  
+  <script type="text/javascript">
+    $.domReady(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'yoyzhou',
+            count: 0,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+
+
+
+  
+</aside>
+
+
+      	</div>
+    </div>
+  </div>
+  <footer id="footer">
+  	<div class="container">
+	Copyright &copy; 2014 - yoyzhou -
+  <span class="credit">Powered by <a rel="nofollow" href="http://octopress.org">Octopress</a> on <a rel="nofollow" href="http://pages.github.com/">GitHubPages</a>
+  </span>
+  - <span class="credit">Theme by <a rel="nofollow" href="http://pagecho.com">Cho</a></span>
+
+
+</div>
+
+  </footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'yoyzhou';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://yoyzhou.github.io/blog/2013/04/21/adding-filter-in-hadoop-mapper-class/';
+        var disqus_url = 'http://yoyzhou.github.io/blog/2013/04/21/adding-filter-in-hadoop-mapper-class/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+
+
+
+
+</body>
+</html>

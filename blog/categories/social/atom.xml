@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: social | Zhou's Blog]]></title>
+  <link href="http://yoyzhou.github.io/blog/categories/social/atom.xml" rel="self"/>
+  <link href="http://yoyzhou.github.io/"/>
+  <updated>2014-11-02T01:05:30-07:00</updated>
+  <id>http://yoyzhou.github.io/</id>
+  <author>
+    <name><![CDATA[yoyzhou]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[A Set of Measures of Centrality Based on Betweenness]]></title>
+    <link href="http://yoyzhou.github.io/blog/2013/04/28/studying-notes-a-set-of-measures-of-centrality-based-on-betweenness/"/>
+    <updated>2013-04-28T23:49:00-07:00</updated>
+    <id>http://yoyzhou.github.io/blog/2013/04/28/studying-notes-a-set-of-measures-of-centrality-based-on-betweenness</id>
+    <content type="html"><![CDATA[<p>This post is a studying notes of paper “A Set of Measures of Centrality Based on Betweenness”, the paper <a href="https://www.tribler.org/trac/raw-attachment/wiki/ReputationFunction/23.pdf">[pdf]</a>, wrote by Freeman in 1977, is an introductory and the most classic paper of <a href="http://en.wikipedia.org/wiki/Betweenness_centrality">betweenness centrality</a>. Based on the betweenness centrality concept first introduced by Bavelas in 1948, the paper introduces a set of measures of centrality, including point centrality, scale free (relative) point centrality, and graph centrality. </p>
+
+<h4 id="betweenness-and-point-centrality">Betweenness and Point Centrality</h4>
+
+<p>The classical centrality measures of Bavelas (1950) etc. can not be used by unconnected networks, since they define the centrality of a point as the sum of the minimum distance between that point and all others, thus all distance sums are infinite in unconnected networks.  </p>
+
+<p>In order to obtain a more satisfactory solution per centrality measurements, Freeman adopts the betweenness concept first introduced by  Bavelas, betweenness of a point is “the degree to which a point falls on the shortest path between others”, and therefore has a potential per control of communication, persons in such central positions could influence the group by “ withholding information (or) coloring, or distorting it in transmission”.</p>
+
+<h4 id="measurement-of-point-centrality">Measurement of Point Centrality</h4>
+<p>Consider a unordered pair of  points {<script type="math/tex">p_i, p_j</script>} <script type="math/tex">(i \neq j)</script>. Either <script type="math/tex">p_i \text{ and } p_j</script> are unreachable from each other or  there are one or more paths between them. In the later case, each path has a length equals to the number of edges contained in it. Among the paths connecting pi and pj, one or more have the shortest length: the <strong>geodesics</strong>.</p>
+
+<p>If $p_i$ and $p_j$ are unreachable from each other, then <script type="math/tex">b_{ij}(p_k)</script>, denotes betweenness centrality of point <script type="math/tex">p_k</script> with respect to <script type="math/tex">p_i</script> and <script type="math/tex">p_j</script>, is zero;</p>
+
+<p>If <script type="math/tex">p_i</script> and <script type="math/tex">p_j</script> are <em>adjacent</em>, means that there is only one edge connecting them, since <script type="math/tex">p_k</script> does not reside on the shortest paths of <script type="math/tex">p_i</script> and <script type="math/tex">p_j</script>, <script type="math/tex">b_{ij}(p_k)</script> also equals to zero;</p>
+
+<p>If <script type="math/tex">p_k</script> is on one or more shortest paths of <script type="math/tex">p_i</script> and <script type="math/tex">p_j</script>, in which situations, <script type="math/tex">p_k</script> has a proportional control of communication between <script type="math/tex">p_i</script> and <script type="math/tex">p_j</script>, and intuitively the proportion is the percentage/extent to which <script type="math/tex">p_k</script> is on the shortest paths, given the total shortest paths of <script type="math/tex">p_i</script> and <script type="math/tex">p_j</script> is <script type="math/tex">g_{ij}</script> and the number of <script type="math/tex">p_k</script> falls in the shortest paths is <script type="math/tex">g_{ij}(p_k)</script>, then we get <script type="math/tex">b_{ij}(p_k) = g_{ij}(p_k)/g_{ij}</script>. As the equation shows below:</p>
+
+<script type="math/tex; mode=display">% &lt;![CDATA[
+b_{ij}(p_k) = \begin{cases} 
+0 & p_i \mbox{ and } p_j \mbox{ are unreachable or adjacent} \\ 
+g_{ij}(p_k)/g_{ij} & \text{otherwise} 
+\end{cases} %]]&gt;</script>
+
+<p>To determine the overall centrality of <script type="math/tex">p_k</script> in the graph, we need merely to sum the partial betweenness value of all unordered pair of points {<script type="math/tex">p_i, p_j</script>} in the graph:</p>
+
+<script type="math/tex; mode=display">\begin{align} C_B(p_k) = \sum\limits_{i}^n \sum\limits_{j}^n b_{ij}(p_k) \mbox{ where } i \lt j \mbox{ and } i,j \neq k  \end{align}</script>
+
+<h4 id="scale-free-point-centrality">Scale-free Point Centrality</h4>
+
+<p>One problem with the above point centrality is it not point independent/scale-free, it is related to how many points in the graph, thus comparing point centrality defined above with different graphs which may contain different amount of point is meaningless. A concreted example is pointed out that  6 betweenness value in 5 points graph compared with 6 betweenness value in 25 points graph, although they have the same betweenness centrality value but the influence of them is different.</p>
+
+<p>In the later section Freeman introduced a relative point centrality, which is scale free to how many points in the graph, where point centrality <script type="math/tex">C'_B(p_k)</script> is divided by the maximum centrality of their graph.</p>
+
+<script type="math/tex; mode=display">\begin{align} C'_B(p_k) = \dfrac{\sum\limits_{i}^n \sum\limits_{j}^n b_{ij}(p_k)} {\mbox{Max } C_B(p_k^*)} \end{align} </script>
+
+<p>where <script type="math/tex">n</script> is the number of points in the graph, and <script type="math/tex">\begin{smallmatrix} \text{Max } C_B(p_k^*) \end{smallmatrix}</script> is only determined by n, which is <script type="math/tex">\begin{smallmatrix} \frac{n \times (n-1)}{2} - (n-1) = \frac{n^2 - 3n + 2}{2} \end{smallmatrix}</script>, therefore we obtain:</p>
+
+<script type="math/tex; mode=display">\begin{align} C'_B(p_k) = \dfrac{2 \times \sum\limits_{i}^n \sum\limits_{j}^n b_{ij}(p_k)}{n^2 - 3n + 2} \end{align} </script>
+
+<p>To get more information of how <script type="math/tex">\begin{smallmatrix} \text{Max } C_B(p_k^*) \end{smallmatrix}</script> is computed, please refer to the paper for details, you can imagine such a point that stands on the shortest path of all other pairs of {<script type="math/tex">p_i, p_j</script>}, where <script type="math/tex">p_i</script> and <script type="math/tex">p_j</script> have merely <strong>one</strong> shortest path, such a graph looks like a star graph, that one point in the central and all others surround it.</p>
+
+<h4 id="graph-centrality">Graph Centrality</h4>
+
+<p>Freeman defines the graph centrality as the average difference between the most central point and all others, which sounds like a little bit of <strong><em>information entropy</em></strong>, I think.</p>
+
+<script type="math/tex; mode=display">\begin{align}
+C'_B = \dfrac{\sum\limits_{i}^n \left( C'_B(p_k^*) - C'_B(p_k) \right)}{n - 1} 
+\end{align}</script>
+
+<p>where <script type="math/tex">\begin{smallmatrix} C'_B(p_k^*) \end{smallmatrix}</script> is the relative point centrality value of the most central point <script type="math/tex">p_k^*</script> in the graph.</p>
+
+<p>From the equation, we can see if all the points have the same centrality value then the graph centrality is 0; and if the graph is a star or wheel graph, then graph centrality is 1.</p>
+
+<p><code>---EOF---</code></p>
+
+]]></content>
+  </entry>
+  
+</feed>

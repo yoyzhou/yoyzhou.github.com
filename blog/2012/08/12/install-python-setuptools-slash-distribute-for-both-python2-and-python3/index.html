@@ -1,0 +1,354 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!-->
+<html class="no-js" lang="zh-CN"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Install Python Setuptools/Distribute for Python 2.x and Python 3.x - Zhou&#8217;s Blog</title>
+  <meta name="author" content="yoyzhou">
+  <!--[if lt IE 9]>
+    <script src="http://x.papaapp.com/farm1/a571d2/8dda131d/html5shiv.js"></script>
+    <![endif]-->
+  
+  <meta name="description" content="Install Python Setuptools/Distribute for Python 2.x and Python 3.x | Comments Since Setuptools doesn’t support Python3.* so far, for Python3.* we &hellip;">
+  <meta name="keywords" content="Python, Distribute, Setuptools, easy install, Python easy install">
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://yoyzhou.github.io/blog/2012/08/12/install-python-setuptools-slash-distribute-for-both-python2-and-python3/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script type="text/javascript" src="http://t.papaapp.com/js/libs/jquery/1.7.2/jquery.js"></script>
+   <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <script src="/javascripts/modernizr-2.0.js"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+	      jax: ["input/TeX", "output/HTML-CSS"],
+		  tex2jax: {
+		  inlineMath: [ ['$', '$'], ["\\(", "\\)"] ],
+		  displayMath: [ ['$$', '$$'], ["\\[", "\\]"] ],
+		  processEscapes: true,
+		  skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+		}}
+   );
+</script>
+<script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML" type="text/javascript"></script>
+<script src="/javascripts/ender.js"></script>
+<script src="/javascripts/octopress.js" type="text/javascript"></script>
+<link href="/atom.xml" rel="alternate" title="Zhou's Blog" type="application/atom+xml">
+
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-34034666-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <header id="header" class="clearfix">    <div class="container">
+        <div class="col-group">
+            <div class="site-name ">
+                <a id="logo" href="/">
+                   Zhou&#8217;s Blog
+                </a>
+                <p class="description">There is no truth as such, there is only truth from a point of view [Nietzsche]</p>
+            </div>
+            <div>
+                <nav id="nav-menu" class="clearfix">
+                    <a class="index-nav current" href="/">Blog</a>
+<a class="archives-nav" href="/blog/archives">Archives</a>
+                </nav>
+            </div>
+        </div>
+    </div>
+</header>
+  <div id="body">
+    <div class="container">
+    	<div class="col-group">
+			<div class="col-8" id="main">
+  <div class="res-cons">
+  <article class="post clearfix">
+  
+  <header>
+    
+      <h1 class="post-title">Install Python Setuptools/Distribute for Python 2.x and Python 3.x</h1>
+    
+    
+      <p class="post-meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2012-08-12T20:23:00-07:00" pubdate data-updated="true"></time>
+        
+         | <a href="#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+<div class="post-content"><p>Since <a href="http://pypi.python.org/pypi/setuptools/">Setuptools</a> doesn’t support Python3.* so far, for Python3.* we choose <a href="http://pypi.python.org/pypi/distribute/">Distribute</a>, <em><strong>it is a fork of the Setuptools project.</strong></em></p>
+
+<blockquote><p>Distribute is intended to replace Setuptools as the standard method for working with Python module distributions.</p><footer><strong>@PyPI Distribute</strong> <cite><a href="http://pypi.python.org/pypi/distribute/#disclaimers">pypi.python.org/pypi/distribute/&hellip;</a></cite></footer></blockquote>
+
+<h3 id="install-python-setuptools-with-easyinstall-for-python-2x">Install python Setuptools with easy_install for Python 2.x</h3>
+
+<p>1 Download setuptools from http://pypi.python.org/pypi/setuptools/, select the appropriate OS/version you want.</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+</pre></td><td class="code"><pre><code class="bash"><span class="line">sudo sh Downloads/setuptools-0.6c11-py2.7.egg
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p>Output:</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+</pre></td><td class="code"><pre><code class="bash"><span class="line">Processing setuptools-0.6c11-py2.7.egg
+</span><span class="line">Copying setuptools-0.6c11-py2.7.egg to /usr/local/lib/python2.7/dist-packages
+</span><span class="line">Adding setuptools 0.6c11 to easy-install.pth file
+</span><span class="line">Installing easy_install script to /usr/local/bin
+</span><span class="line">Installing easy_install-2.7 script to /usr/local/bin
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<h3 id="install-python-distribute-with-easyinstall-for-python-3x">Install python Distribute with easy_install for Python 3.x</h3>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+</pre></td><td class="code"><pre><code class="bash"><span class="line">curl -O http://python-distribute.org/distribute_setup.py
+</span><span class="line">sudo &lt;python-cmd&gt; distribute_setup.py
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p>Output:</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+</pre></td><td class="code"><pre><code class="bash"><span class="line">Adding distribute 0.6.28 to easy-install.pth file
+</span><span class="line">Installing easy_install script to /usr/local/bin
+</span><span class="line">Installing easy_install-3.2 script to /usr/local/bin
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p><strong>Note:</strong> Make sure &lt;python-cmd&gt; is a python3.* command, in my PC, Python2.* command is python, while the Python3.* command is python3,  use &lt;python-cmd&gt; –version to check out version of &lt;python-cmd&gt;. </p>
+
+<h3 id="use-easyinstall-2x-and-3x">Use easy_install 2.x and 3.x</h3>
+<p>Now per installing 2.x packages, using:</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+</pre></td><td class="code"><pre><code class="bash"><span class="line">easy_install-2.7  &lt;package-name&gt;
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p>while using</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+</pre></td><td class="code"><pre><code class="bash"><span class="line">easy_install-3.2  &lt;package-name&gt;
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p>to install version 3.x packages.</p>
+
+<p><code>---EOF---</code></p>
+
+</div>
+
+
+  <footer class="post-footer">
+    <div class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">yoyzhou</span></span>
+ under 
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/distribute/'>distribute</a>, <a class='category' href='/blog/categories/easy-install/'>easy install</a>, <a class='category' href='/blog/categories/python/'>python</a>, <a class='category' href='/blog/categories/setuptools/'>setuptools</a>
+  
+</span>
+
+
+    </div>
+    
+      <div class="sharing">
+  
+  
+  
+</div>
+
+    
+    <div class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2012/08/11/git-fundamentals-learning-notes-of-pro-git-part2/" title="Previous Post: Git Fundamentals - Branch: Learning Notes of Pro Git">&laquo; Git Fundamentals - Branch: Learning Notes of Pro Git</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2013/02/28/python-threads-synchronization-locks/" title="Next Post: Python线程同步机制: Locks, RLocks, Semaphores, Conditions, Events和Queues">Python线程同步机制: Locks, RLocks, Semaphores, Conditions, Events和Queues &raquo;</a>
+      
+    </div>
+  </footer>
+</article>
+
+  <section>
+    <h3>Comments</h3>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+  </div>
+</div>
+
+  <aside id="secondary">
+  
+    
+<section class="widget">
+	<h3 class="widget-title">About Me</h3>
+	<p><code style="font-size: 14px;">Writing is the best way of learning</code></p>
+</section>
+<section class="widget">
+	<h3 class="widget-title">Recent Posts</h3>
+	<ul class="widget-list">
+		
+     	<li>
+      	  <a href="/blog/2013/06/04/mahout-clustering-with-hadoop/">在Hadoop上运行Mahout KMeans聚类分析</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/26/clustering-with-mahout/">Mahout与聚类分析</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/13/hadoop-write-ur-own-rawcomparator/">使用RawComparator加速Hadoop程序</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/10/hadoop-serialization-and-writable-object-2/">Hadoop序列化与Writable接口(二)</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/09/hadoop-serialization-and-writable-object-1/">Hadoop序列化与Writable接口(一)</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/29/viz-following-networks-of-weibo-celebrities/">微博名人关注网络的社会网络分析</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/29/a-kinda-betweenness-centrality-algorithm/">A Kinda Betweenness Centrality Algorithm</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/28/studying-notes-a-set-of-measures-of-centrality-based-on-betweenness/">A Set of Measures of Centrality Based on Betweenness</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/21/adding-filter-in-hadoop-mapper-class/">Adding Filter in Hadoop Mapper Class</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/14/steps-of-programming-hadoop-with-eclipse/">使用Eclipse开发MapReduce程序的步骤</a>
+      	</li>
+    	
+	</ul>
+</section>
+
+<section class="widget">
+  <h3>GitHub Repos</h3>
+  <ul id="gh_repos" class="widget-list">
+    <li class="loading">Status updating&#8230;</li>
+  </ul>
+  
+  <a href="https://github.com/yoyzhou">@yoyzhou</a> on GitHub
+  
+  <script type="text/javascript">
+    $.domReady(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'yoyzhou',
+            count: 0,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+
+
+
+  
+</aside>
+
+
+      	</div>
+    </div>
+  </div>
+  <footer id="footer">
+  	<div class="container">
+	Copyright &copy; 2014 - yoyzhou -
+  <span class="credit">Powered by <a rel="nofollow" href="http://octopress.org">Octopress</a> on <a rel="nofollow" href="http://pages.github.com/">GitHubPages</a>
+  </span>
+  - <span class="credit">Theme by <a rel="nofollow" href="http://pagecho.com">Cho</a></span>
+
+
+</div>
+
+  </footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'yoyzhou';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://yoyzhou.github.io/blog/2012/08/12/install-python-setuptools-slash-distribute-for-both-python2-and-python3/';
+        var disqus_url = 'http://yoyzhou.github.io/blog/2012/08/12/install-python-setuptools-slash-distribute-for-both-python2-and-python3/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+
+
+
+
+</body>
+</html>

@@ -1,0 +1,546 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!-->
+<html class="no-js" lang="zh-CN"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Hadoop序列化与Writable接口(一) - Zhou&#8217;s Blog</title>
+  <meta name="author" content="yoyzhou">
+  <!--[if lt IE 9]>
+    <script src="http://x.papaapp.com/farm1/a571d2/8dda131d/html5shiv.js"></script>
+    <![endif]-->
+  
+  <meta name="description" content="本文介绍Hadoop序列化以及如何编写定制的Hadoop Writable类，最后分析Hadoop中Writable实例占用的字节长度，以及Writable实例的字节序列的结构。">
+  <meta name="keywords" content="hadoop, bigdata, java, writable, mapreduce">
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://yoyzhou.github.io/blog/2013/05/09/hadoop-serialization-and-writable-object-1/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script type="text/javascript" src="http://t.papaapp.com/js/libs/jquery/1.7.2/jquery.js"></script>
+   <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <script src="/javascripts/modernizr-2.0.js"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+	      jax: ["input/TeX", "output/HTML-CSS"],
+		  tex2jax: {
+		  inlineMath: [ ['$', '$'], ["\\(", "\\)"] ],
+		  displayMath: [ ['$$', '$$'], ["\\[", "\\]"] ],
+		  processEscapes: true,
+		  skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+		}}
+   );
+</script>
+<script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML" type="text/javascript"></script>
+<script src="/javascripts/ender.js"></script>
+<script src="/javascripts/octopress.js" type="text/javascript"></script>
+<link href="/atom.xml" rel="alternate" title="Zhou's Blog" type="application/atom+xml">
+
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-34034666-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <header id="header" class="clearfix">    <div class="container">
+        <div class="col-group">
+            <div class="site-name ">
+                <a id="logo" href="/">
+                   Zhou&#8217;s Blog
+                </a>
+                <p class="description">There is no truth as such, there is only truth from a point of view [Nietzsche]</p>
+            </div>
+            <div>
+                <nav id="nav-menu" class="clearfix">
+                    <a class="index-nav current" href="/">Blog</a>
+<a class="archives-nav" href="/blog/archives">Archives</a>
+                </nav>
+            </div>
+        </div>
+    </div>
+</header>
+  <div id="body">
+    <div class="container">
+    	<div class="col-group">
+			<div class="col-8" id="main">
+  <div class="res-cons">
+  <article class="post clearfix">
+  
+  <header>
+    
+      <h1 class="post-title">Hadoop序列化与Writable接口(一)</h1>
+    
+    
+      <p class="post-meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-05-09T20:49:00-07:00" pubdate data-updated="true"></time>
+        
+         | <a href="#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+<div class="post-content"><h4 id="section">序列化</h4>
+
+<p><strong>序列化</strong>（serialization）是指将结构化的对象转化为字节流，以便在网络上传输或者写入到硬盘进行永久存储；相对的<strong>反序列化</strong>（deserialization）是指将字节流转回到结构化对象的过程。</p>
+
+<p>在分布式系统中进程将对象序列化为字节流，通过网络传输到另一进程，另一进程接收到字节流，通过反序列化转回到结构化对象，以达到进程间通信。在Hadoop中，Mapper，Combiner，Reducer等阶段之间的通信都需要使用序列化与反序列化技术。举例来说，Mapper产生的中间结果（<code>&lt;key: value1, value2...&gt;</code>）需要写入到本地硬盘，这是序列化过程（将结构化对象转化为字节流，并写入硬盘），而Reducer阶段读取Mapper的中间结果的过程则是一个反序列化过程（读取硬盘上存储的字节流文件，并转回为结构化对象），需要注意的是，能够在网络上传输的只能是字节流，Mapper的中间结果在不同主机间洗牌时，对象将经历序列化和反序列化两个过程。</p>
+
+<p>序列化是Hadoop核心的一部分，在Hadoop中，位于org.apache.hadoop.io包中的Writable接口是Hadoop序列化格式的实现。</p>
+
+<h4 id="writable">Writable接口</h4>
+
+<p>Hadoop Writable接口是基于DataInput和DataOutput实现的序列化协议，紧凑（高效使用存储空间），快速（读写数据、序列化与反序列化的开销小）。Hadoop中的键（key）和值（value）必须是实现了Writable接口的对象（键还必须实现WritableComparable，以便进行排序）。</p>
+
+<p>以下是Hadoop（使用的是Hadoop 1.1.2）中Writable接口的声明：</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+<span class="line-number">19</span>
+<span class="line-number">20</span>
+<span class="line-number">21</span>
+<span class="line-number">22</span>
+<span class="line-number">23</span>
+<span class="line-number">24</span>
+<span class="line-number">25</span>
+<span class="line-number">26</span>
+</pre></td><td class="code"><pre><code class="java"><span class="line"><span class="kn">package</span> <span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">hadoop</span><span class="o">.</span><span class="na">io</span><span class="o">;</span>
+</span><span class="line">
+</span><span class="line"><span class="kn">import</span> <span class="nn">java.io.DataOutput</span><span class="o">;</span>
+</span><span class="line"><span class="kn">import</span> <span class="nn">java.io.DataInput</span><span class="o">;</span>
+</span><span class="line"><span class="kn">import</span> <span class="nn">java.io.IOException</span><span class="o">;</span>
+</span><span class="line">
+</span><span class="line"><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">Writable</span> <span class="o">{</span>
+</span><span class="line">  <span class="cm">/** </span>
+</span><span class="line"><span class="cm">   * Serialize the fields of this object to &lt;code&gt;out&lt;/code&gt;.</span>
+</span><span class="line"><span class="cm">   * </span>
+</span><span class="line"><span class="cm">   * @param out &lt;code&gt;DataOuput&lt;/code&gt; to serialize this object into.</span>
+</span><span class="line"><span class="cm">   * @throws IOException</span>
+</span><span class="line"><span class="cm">   */</span>
+</span><span class="line">  <span class="kt">void</span> <span class="nf">write</span><span class="o">(</span><span class="n">DataOutput</span> <span class="n">out</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">IOException</span><span class="o">;</span>
+</span><span class="line">
+</span><span class="line">  <span class="cm">/** </span>
+</span><span class="line"><span class="cm">   * Deserialize the fields of this object from &lt;code&gt;in&lt;/code&gt;.  </span>
+</span><span class="line"><span class="cm">   * </span>
+</span><span class="line"><span class="cm">   * &lt;p&gt;For efficiency, implementations should attempt to re-use storage in the </span>
+</span><span class="line"><span class="cm">   * existing object where possible.&lt;/p&gt;</span>
+</span><span class="line"><span class="cm">   * </span>
+</span><span class="line"><span class="cm">   * @param in &lt;code&gt;DataInput&lt;/code&gt; to deseriablize this object from.</span>
+</span><span class="line"><span class="cm">   * @throws IOException</span>
+</span><span class="line"><span class="cm">   */</span>
+</span><span class="line">  <span class="kt">void</span> <span class="nf">readFields</span><span class="o">(</span><span class="n">DataInput</span> <span class="n">in</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">IOException</span><span class="o">;</span>
+</span><span class="line"><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<h4 id="writable-1">Writable类</h4>
+
+<p>Hadoop自身提供了多种具体的Writable类，包含了常见的Java基本类型（boolean、byte、short、int、float、long和double等）和集合类型（BytesWritable、ArrayWritable和MapWritable等）。这些类型都位于org.apache.hadoop.io包中。</p>
+
+<p><img src="/images/hadoop-writable-class.png" alt="writable-classes" /></p>
+
+<p>(图片来源：safaribooksonline.com)</p>
+
+<h4 id="writable-2">定制Writable类</h4>
+
+<p>虽然Hadoop内建了多种Writable类提供用户选择，Hadoop对Java基本类型的包装Writable类实现的RawComparable接口，使得这些对象不需要反序列化过程，便可以在字节流层面进行排序，从而大大缩短了比较的时间开销，但是当我们需要更加复杂的对象时，Hadoop的内建Writable类就不能满足我们的需求了(需要注意的是Hadoop提供的Writable集合类型并没有实现RawComparable接口，因此也不满足我们的需要)，这时我们就需要定制自己的Writable类，特别将其作为键（key）的时候更应该如此，以求达到更高效的存储和快速的比较。</p>
+
+<p>下面的实例展示了如何定制一个Writable类，一个定制的Writable类首先必须实现Writable或者WritableComparable接口，然后为定制的Writable类编写write(DataOutput out)和readFields(DataInput in)方法，来控制定制的Writable类如何转化为字节流（write方法）和如何从字节流转回为Writable对象。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+<span class="line-number">19</span>
+<span class="line-number">20</span>
+<span class="line-number">21</span>
+<span class="line-number">22</span>
+<span class="line-number">23</span>
+<span class="line-number">24</span>
+<span class="line-number">25</span>
+<span class="line-number">26</span>
+<span class="line-number">27</span>
+<span class="line-number">28</span>
+<span class="line-number">29</span>
+<span class="line-number">30</span>
+<span class="line-number">31</span>
+<span class="line-number">32</span>
+<span class="line-number">33</span>
+<span class="line-number">34</span>
+<span class="line-number">35</span>
+<span class="line-number">36</span>
+<span class="line-number">37</span>
+<span class="line-number">38</span>
+<span class="line-number">39</span>
+<span class="line-number">40</span>
+<span class="line-number">41</span>
+<span class="line-number">42</span>
+<span class="line-number">43</span>
+<span class="line-number">44</span>
+<span class="line-number">45</span>
+<span class="line-number">46</span>
+<span class="line-number">47</span>
+<span class="line-number">48</span>
+<span class="line-number">49</span>
+<span class="line-number">50</span>
+<span class="line-number">51</span>
+<span class="line-number">52</span>
+<span class="line-number">53</span>
+<span class="line-number">54</span>
+<span class="line-number">55</span>
+<span class="line-number">56</span>
+<span class="line-number">57</span>
+<span class="line-number">58</span>
+<span class="line-number">59</span>
+<span class="line-number">60</span>
+<span class="line-number">61</span>
+<span class="line-number">62</span>
+<span class="line-number">63</span>
+<span class="line-number">64</span>
+<span class="line-number">65</span>
+<span class="line-number">66</span>
+<span class="line-number">67</span>
+<span class="line-number">68</span>
+<span class="line-number">69</span>
+<span class="line-number">70</span>
+<span class="line-number">71</span>
+<span class="line-number">72</span>
+<span class="line-number">73</span>
+<span class="line-number">74</span>
+<span class="line-number">75</span>
+<span class="line-number">76</span>
+<span class="line-number">77</span>
+<span class="line-number">78</span>
+<span class="line-number">79</span>
+</pre></td><td class="code"><pre><code class="java"><span class="line"><span class="kn">package</span> <span class="n">com</span><span class="o">.</span><span class="na">yoyzhou</span><span class="o">.</span><span class="na">weibo</span><span class="o">;</span>
+</span><span class="line">
+</span><span class="line"><span class="kn">import</span> <span class="nn">java.io.DataInput</span><span class="o">;</span>
+</span><span class="line"><span class="kn">import</span> <span class="nn">java.io.DataOutput</span><span class="o">;</span>
+</span><span class="line"><span class="kn">import</span> <span class="nn">java.io.IOException</span><span class="o">;</span>
+</span><span class="line"><span class="kn">import</span> <span class="nn">org.apache.hadoop.io.VLongWritable</span><span class="o">;</span>
+</span><span class="line"><span class="kn">import</span> <span class="nn">org.apache.hadoop.io.Writable</span><span class="o">;</span>
+</span><span class="line">
+</span><span class="line"><span class="cm">/**</span>
+</span><span class="line"><span class="cm"> *This MyWritable class demonstrates how to write a custom Writable class </span>
+</span><span class="line"><span class="cm"> *</span>
+</span><span class="line"><span class="cm"> **/</span>
+</span><span class="line"><span class="kd">public</span> <span class="kd">class</span> <span class="nc">MyWritable</span> <span class="kd">implements</span> <span class="n">Writable</span><span class="o">{</span>
+</span><span class="line">		
+</span><span class="line">		
+</span><span class="line">	<span class="kd">private</span> <span class="n">VLongWritable</span> <span class="n">field1</span><span class="o">;</span>
+</span><span class="line">	<span class="kd">private</span> <span class="n">VLongWritable</span> <span class="n">field2</span><span class="o">;</span>
+</span><span class="line">		
+</span><span class="line">	<span class="kd">public</span> <span class="nf">MyWritable</span><span class="o">(){</span>
+</span><span class="line">		<span class="k">this</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="k">new</span> <span class="nf">VLongWritable</span><span class="o">(),</span> <span class="k">new</span> <span class="nf">VLongWritable</span><span class="o">());</span>
+</span><span class="line">	<span class="o">}</span>
+</span><span class="line">		
+</span><span class="line">		
+</span><span class="line">	<span class="kd">public</span> <span class="nf">MyWritable</span><span class="o">(</span><span class="n">VLongWritable</span> <span class="n">fld1</span><span class="o">,</span> <span class="n">VLongWritable</span> <span class="n">fld2</span><span class="o">){</span>
+</span><span class="line">			
+</span><span class="line">		<span class="k">this</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="n">fld1</span><span class="o">,</span> <span class="n">fld2</span><span class="o">);</span>
+</span><span class="line">			
+</span><span class="line">	<span class="o">}</span>
+</span><span class="line">		
+</span><span class="line">	<span class="kd">public</span> <span class="kt">void</span> <span class="nf">set</span><span class="o">(</span><span class="n">VLongWritable</span> <span class="n">fld1</span><span class="o">,</span> <span class="n">VLongWritable</span> <span class="n">fld2</span><span class="o">){</span>
+</span><span class="line">		<span class="c1">//make sure the smaller field is always put as field1</span>
+</span><span class="line">		<span class="k">if</span><span class="o">(</span><span class="n">fld1</span><span class="o">.</span><span class="na">get</span><span class="o">()</span> <span class="o">&lt;=</span> <span class="n">fld2</span><span class="o">.</span><span class="na">get</span><span class="o">()){</span>
+</span><span class="line">			<span class="k">this</span><span class="o">.</span><span class="na">field1</span> <span class="o">=</span> <span class="n">fld1</span><span class="o">;</span>
+</span><span class="line">			<span class="k">this</span><span class="o">.</span><span class="na">field2</span> <span class="o">=</span> <span class="n">fld2</span><span class="o">;</span>
+</span><span class="line">		<span class="o">}</span><span class="k">else</span><span class="o">{</span>
+</span><span class="line">				
+</span><span class="line">			<span class="k">this</span><span class="o">.</span><span class="na">field1</span> <span class="o">=</span> <span class="n">fld2</span><span class="o">;</span>
+</span><span class="line">			<span class="k">this</span><span class="o">.</span><span class="na">field2</span> <span class="o">=</span> <span class="n">fld1</span><span class="o">;</span>
+</span><span class="line">		<span class="o">}</span>
+</span><span class="line">		<span class="o">}</span>
+</span><span class="line">				
+</span><span class="line">	<span class="c1">//How to write and read MyWritable fields from DataOutput and DataInput stream</span>
+</span><span class="line">	<span class="nd">@Override</span>
+</span><span class="line">	<span class="kd">public</span> <span class="kt">void</span> <span class="nf">write</span><span class="o">(</span><span class="n">DataOutput</span> <span class="n">out</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">IOException</span> <span class="o">{</span>
+</span><span class="line">			
+</span><span class="line">		<span class="n">field1</span><span class="o">.</span><span class="na">write</span><span class="o">(</span><span class="n">out</span><span class="o">);</span>
+</span><span class="line">		<span class="n">field2</span><span class="o">.</span><span class="na">write</span><span class="o">(</span><span class="n">out</span><span class="o">);</span>
+</span><span class="line">	<span class="o">}</span>
+</span><span class="line">
+</span><span class="line">	<span class="nd">@Override</span>
+</span><span class="line">	<span class="kd">public</span> <span class="kt">void</span> <span class="nf">readFields</span><span class="o">(</span><span class="n">DataInput</span> <span class="n">in</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">IOException</span> <span class="o">{</span>
+</span><span class="line">			
+</span><span class="line">		<span class="n">field1</span><span class="o">.</span><span class="na">readFields</span><span class="o">(</span><span class="n">in</span><span class="o">);</span>
+</span><span class="line">		<span class="n">field2</span><span class="o">.</span><span class="na">readFields</span><span class="o">(</span><span class="n">in</span><span class="o">);</span>
+</span><span class="line">	<span class="o">}</span>
+</span><span class="line">
+</span><span class="line">	<span class="cm">/** Returns true if &lt;code&gt;o&lt;/code&gt; is a MyWritable with the same values. */</span>
+</span><span class="line">	<span class="nd">@Override</span>
+</span><span class="line">	<span class="kd">public</span> <span class="kt">boolean</span> <span class="nf">equals</span><span class="o">(</span><span class="n">Object</span> <span class="n">o</span><span class="o">)</span> <span class="o">{</span>
+</span><span class="line">		 <span class="k">if</span> <span class="o">(!(</span><span class="n">o</span> <span class="k">instanceof</span> <span class="n">MyWritable</span><span class="o">))</span>
+</span><span class="line">		    <span class="k">return</span> <span class="kc">false</span><span class="o">;</span>
+</span><span class="line">		
+</span><span class="line">		    <span class="n">MyWritable</span> <span class="n">other</span> <span class="o">=</span> <span class="o">(</span><span class="n">MyWritable</span><span class="o">)</span><span class="n">o</span><span class="o">;</span>
+</span><span class="line">		    <span class="k">return</span> <span class="n">field1</span><span class="o">.</span><span class="na">equals</span><span class="o">(</span><span class="n">other</span><span class="o">.</span><span class="na">field1</span><span class="o">)</span> <span class="o">&amp;&amp;</span> <span class="n">field2</span><span class="o">.</span><span class="na">equals</span><span class="o">(</span><span class="n">other</span><span class="o">.</span><span class="na">field2</span><span class="o">);</span>
+</span><span class="line">		
+</span><span class="line">	<span class="o">}</span>
+</span><span class="line">		
+</span><span class="line">	<span class="nd">@Override</span>
+</span><span class="line">	<span class="kd">public</span> <span class="kt">int</span> <span class="nf">hashCode</span><span class="o">(){</span>
+</span><span class="line">			
+</span><span class="line">		<span class="k">return</span> <span class="n">field1</span><span class="o">.</span><span class="na">hashCode</span><span class="o">()</span> <span class="o">*</span> <span class="mi">163</span> <span class="o">+</span> <span class="n">field2</span><span class="o">.</span><span class="na">hashCode</span><span class="o">();</span>
+</span><span class="line">	<span class="o">}</span>
+</span><span class="line">		
+</span><span class="line">	<span class="nd">@Override</span>
+</span><span class="line">	<span class="kd">public</span> <span class="n">String</span> <span class="nf">toString</span><span class="o">()</span> <span class="o">{</span>
+</span><span class="line">		<span class="k">return</span> <span class="n">field1</span><span class="o">.</span><span class="na">toString</span><span class="o">()</span> <span class="o">+</span> <span class="s">&quot;\t&quot;</span> <span class="o">+</span> <span class="n">field2</span><span class="o">.</span><span class="na">toString</span><span class="o">();</span>
+</span><span class="line">	<span class="o">}</span>
+</span><span class="line">		
+</span><span class="line"><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>未完待续，下一篇中将介绍Writable对象序列化为字节流时占用的字节长度以及其字节序列的构成。</p>
+
+<h4 id="section-1">参考资料</h4>
+
+<p>Tom White, Hadoop: The Definitive Guide, 3rd Edition </p>
+
+<p><code>---To Be Continued---</code></p>
+
+</div>
+
+
+  <footer class="post-footer">
+    <div class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">yoyzhou</span></span>
+ under 
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/bigdata/'>bigdata</a>, <a class='category' href='/blog/categories/hadoop/'>hadoop</a>, <a class='category' href='/blog/categories/java/'>java</a>, <a class='category' href='/blog/categories/writable/'>writable</a>
+  
+</span>
+
+
+    </div>
+    
+      <div class="sharing">
+  
+  
+  
+</div>
+
+    
+    <div class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2013/04/29/viz-following-networks-of-weibo-celebrities/" title="Previous Post: 微博名人关注网络的社会网络分析">&laquo; 微博名人关注网络的社会网络分析</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2013/05/10/hadoop-serialization-and-writable-object-2/" title="Next Post: Hadoop序列化与Writable接口(二)">Hadoop序列化与Writable接口(二) &raquo;</a>
+      
+    </div>
+  </footer>
+</article>
+
+  <section>
+    <h3>Comments</h3>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+  </div>
+</div>
+
+  <aside id="secondary">
+  
+    
+<section class="widget">
+	<h3 class="widget-title">About Me</h3>
+	<p><code style="font-size: 14px;">Writing is the best way of learning</code></p>
+</section>
+<section class="widget">
+	<h3 class="widget-title">Recent Posts</h3>
+	<ul class="widget-list">
+		
+     	<li>
+      	  <a href="/blog/2013/06/04/mahout-clustering-with-hadoop/">在Hadoop上运行Mahout KMeans聚类分析</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/26/clustering-with-mahout/">Mahout与聚类分析</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/13/hadoop-write-ur-own-rawcomparator/">使用RawComparator加速Hadoop程序</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/10/hadoop-serialization-and-writable-object-2/">Hadoop序列化与Writable接口(二)</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/09/hadoop-serialization-and-writable-object-1/">Hadoop序列化与Writable接口(一)</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/29/viz-following-networks-of-weibo-celebrities/">微博名人关注网络的社会网络分析</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/29/a-kinda-betweenness-centrality-algorithm/">A Kinda Betweenness Centrality Algorithm</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/28/studying-notes-a-set-of-measures-of-centrality-based-on-betweenness/">A Set of Measures of Centrality Based on Betweenness</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/21/adding-filter-in-hadoop-mapper-class/">Adding Filter in Hadoop Mapper Class</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/14/steps-of-programming-hadoop-with-eclipse/">使用Eclipse开发MapReduce程序的步骤</a>
+      	</li>
+    	
+	</ul>
+</section>
+
+<section class="widget">
+  <h3>GitHub Repos</h3>
+  <ul id="gh_repos" class="widget-list">
+    <li class="loading">Status updating&#8230;</li>
+  </ul>
+  
+  <a href="https://github.com/yoyzhou">@yoyzhou</a> on GitHub
+  
+  <script type="text/javascript">
+    $.domReady(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'yoyzhou',
+            count: 0,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+
+
+
+  
+</aside>
+
+
+      	</div>
+    </div>
+  </div>
+  <footer id="footer">
+  	<div class="container">
+	Copyright &copy; 2014 - yoyzhou -
+  <span class="credit">Powered by <a rel="nofollow" href="http://octopress.org">Octopress</a> on <a rel="nofollow" href="http://pages.github.com/">GitHubPages</a>
+  </span>
+  - <span class="credit">Theme by <a rel="nofollow" href="http://pagecho.com">Cho</a></span>
+
+
+</div>
+
+  </footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'yoyzhou';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://yoyzhou.github.io/blog/2013/05/09/hadoop-serialization-and-writable-object-1/';
+        var disqus_url = 'http://yoyzhou.github.io/blog/2013/05/09/hadoop-serialization-and-writable-object-1/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+
+
+
+
+</body>
+</html>

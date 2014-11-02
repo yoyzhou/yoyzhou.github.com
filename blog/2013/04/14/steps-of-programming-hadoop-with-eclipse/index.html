@@ -1,0 +1,326 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!-->
+<html class="no-js" lang="zh-CN"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>使用Eclipse开发MapReduce程序的步骤 - Zhou&#8217;s Blog</title>
+  <meta name="author" content="yoyzhou">
+  <!--[if lt IE 9]>
+    <script src="http://x.papaapp.com/farm1/a571d2/8dda131d/html5shiv.js"></script>
+    <![endif]-->
+  
+  <meta name="description" content="使用Eclipse开发MapReduce程序时的路线，假定读者已经配置好了Hadoop环境并且了解Eclipse的相关操作。">
+  <meta name="keywords" content="Hadoop, Bigdata, Programming, MapReduce, Eclipse, Hadoop编程, MapReduce类, 大数据, Java编程">
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://yoyzhou.github.io/blog/2013/04/14/steps-of-programming-hadoop-with-eclipse/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script type="text/javascript" src="http://t.papaapp.com/js/libs/jquery/1.7.2/jquery.js"></script>
+   <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <script src="/javascripts/modernizr-2.0.js"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+	      jax: ["input/TeX", "output/HTML-CSS"],
+		  tex2jax: {
+		  inlineMath: [ ['$', '$'], ["\\(", "\\)"] ],
+		  displayMath: [ ['$$', '$$'], ["\\[", "\\]"] ],
+		  processEscapes: true,
+		  skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+		}}
+   );
+</script>
+<script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML" type="text/javascript"></script>
+<script src="/javascripts/ender.js"></script>
+<script src="/javascripts/octopress.js" type="text/javascript"></script>
+<link href="/atom.xml" rel="alternate" title="Zhou's Blog" type="application/atom+xml">
+
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-34034666-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <header id="header" class="clearfix">    <div class="container">
+        <div class="col-group">
+            <div class="site-name ">
+                <a id="logo" href="/">
+                   Zhou&#8217;s Blog
+                </a>
+                <p class="description">There is no truth as such, there is only truth from a point of view [Nietzsche]</p>
+            </div>
+            <div>
+                <nav id="nav-menu" class="clearfix">
+                    <a class="index-nav current" href="/">Blog</a>
+<a class="archives-nav" href="/blog/archives">Archives</a>
+                </nav>
+            </div>
+        </div>
+    </div>
+</header>
+  <div id="body">
+    <div class="container">
+    	<div class="col-group">
+			<div class="col-8" id="main">
+  <div class="res-cons">
+  <article class="post clearfix">
+  
+  <header>
+    
+      <h1 class="post-title">使用Eclipse开发MapReduce程序的步骤</h1>
+    
+    
+      <p class="post-meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-04-14T20:58:00-07:00" pubdate data-updated="true"></time>
+        
+         | <a href="#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+<div class="post-content"><p>以下8个步骤是我在使用Eclipse开发MapReduce程序时的路线，假定读者已经配置好了Hadoop环境并且了解Eclipse的相关操作。</p>
+
+<p>步骤<code>0～4</code>为在Eclipse中编写和调试MapReduce程序；步骤<code>5、6</code>为在伪分布模式下运行MapReduce程序，并且通过导出项目到指定目录实现了Eclipse项目与Hadoop的关联。</p>
+
+<p>0 创建Java项目</p>
+
+<p>1 在项目的CLASS PATH中添加<a href="http://hadoop.apache.org/">Hadoop</a>相关的JAR引用（注意在添加JAR文件，而不是JAR文件夹，要不然在4中会因为找不到JAR或者Class而报错）</p>
+
+<blockquote>
+  <p>如果你还下载了Hadoop的<a href="http://hadoop.apache.org/releases.html">源码</a>，也可以给Hadoop相关的JAR添加源码，这样在Eclipse就可以使用F3参看Hadoop源码）</p>
+</blockquote>
+
+<p>2 按照<a href="http://hadoop.apache.org/docs/r1.0.4/mapred_tutorial.html">MapReduce</a>类规范，编写自己的MapReduce类</p>
+
+<p>3 配置MapReduce类的运行参数</p>
+
+<p>4 在Eclipse中以单机模式运行/调试程序</p>
+
+<p>5 将程序导出（Export）为JAR文件到$HADOOP_HOME/lib下</p>
+
+<p>6 在伪分布模式下运行程序 bin/hadoop jar lib/ur-exported-jar.JAR full-class-name 参数列表</p>
+
+<blockquote>
+  <p>例如，你导出的JAR文件名为myhadoop.jar，类名称com.coolcompany.wordcount，命令就是：bin/hadoop jar lib/myhadoop.jar com.coolcompany.wordcount 参数列表</p>
+</blockquote>
+
+<p>7 部署程序到真实的Hadoop集群</p>
+
+<p><code>---EOF---</code></p>
+
+</div>
+
+
+  <footer class="post-footer">
+    <div class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">yoyzhou</span></span>
+ under 
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/bigdata/'>bigdata</a>, <a class='category' href='/blog/categories/eclipse/'>eclipse</a>, <a class='category' href='/blog/categories/hadoop/'>hadoop</a>, <a class='category' href='/blog/categories/mapreduce/'>mapreduce</a>, <a class='category' href='/blog/categories/programming/'>programming</a>
+  
+</span>
+
+
+    </div>
+    
+      <div class="sharing">
+  
+  
+  
+</div>
+
+    
+    <div class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2013/04/14/hadoop-in-action-reading-note/" title="Previous Post: Hadoop in Action学习笔记">&laquo; Hadoop in Action学习笔记</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2013/04/21/adding-filter-in-hadoop-mapper-class/" title="Next Post: Adding Filter in Hadoop Mapper Class">Adding Filter in Hadoop Mapper Class &raquo;</a>
+      
+    </div>
+  </footer>
+</article>
+
+  <section>
+    <h3>Comments</h3>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+  </div>
+</div>
+
+  <aside id="secondary">
+  
+    
+<section class="widget">
+	<h3 class="widget-title">About Me</h3>
+	<p><code style="font-size: 14px;">Writing is the best way of learning</code></p>
+</section>
+<section class="widget">
+	<h3 class="widget-title">Recent Posts</h3>
+	<ul class="widget-list">
+		
+     	<li>
+      	  <a href="/blog/2013/06/04/mahout-clustering-with-hadoop/">在Hadoop上运行Mahout KMeans聚类分析</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/26/clustering-with-mahout/">Mahout与聚类分析</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/13/hadoop-write-ur-own-rawcomparator/">使用RawComparator加速Hadoop程序</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/10/hadoop-serialization-and-writable-object-2/">Hadoop序列化与Writable接口(二)</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/09/hadoop-serialization-and-writable-object-1/">Hadoop序列化与Writable接口(一)</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/29/viz-following-networks-of-weibo-celebrities/">微博名人关注网络的社会网络分析</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/29/a-kinda-betweenness-centrality-algorithm/">A Kinda Betweenness Centrality Algorithm</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/28/studying-notes-a-set-of-measures-of-centrality-based-on-betweenness/">A Set of Measures of Centrality Based on Betweenness</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/21/adding-filter-in-hadoop-mapper-class/">Adding Filter in Hadoop Mapper Class</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/14/steps-of-programming-hadoop-with-eclipse/">使用Eclipse开发MapReduce程序的步骤</a>
+      	</li>
+    	
+	</ul>
+</section>
+
+<section class="widget">
+  <h3>GitHub Repos</h3>
+  <ul id="gh_repos" class="widget-list">
+    <li class="loading">Status updating&#8230;</li>
+  </ul>
+  
+  <a href="https://github.com/yoyzhou">@yoyzhou</a> on GitHub
+  
+  <script type="text/javascript">
+    $.domReady(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'yoyzhou',
+            count: 0,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+
+
+
+  
+</aside>
+
+
+      	</div>
+    </div>
+  </div>
+  <footer id="footer">
+  	<div class="container">
+	Copyright &copy; 2014 - yoyzhou -
+  <span class="credit">Powered by <a rel="nofollow" href="http://octopress.org">Octopress</a> on <a rel="nofollow" href="http://pages.github.com/">GitHubPages</a>
+  </span>
+  - <span class="credit">Theme by <a rel="nofollow" href="http://pagecho.com">Cho</a></span>
+
+
+</div>
+
+  </footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'yoyzhou';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://yoyzhou.github.io/blog/2013/04/14/steps-of-programming-hadoop-with-eclipse/';
+        var disqus_url = 'http://yoyzhou.github.io/blog/2013/04/14/steps-of-programming-hadoop-with-eclipse/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+
+
+
+
+</body>
+</html>

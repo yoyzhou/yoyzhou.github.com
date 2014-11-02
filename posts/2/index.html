@@ -1,0 +1,1949 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!-->
+<html class="no-js" lang="zh-CN"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Zhou&#8217;s Blog</title>
+  <meta name="author" content="yoyzhou">
+  <!--[if lt IE 9]>
+    <script src="http://x.papaapp.com/farm1/a571d2/8dda131d/html5shiv.js"></script>
+    <![endif]-->
+  
+  <meta name="description" content="Hadoop in Action学习笔记 | Comments 第一章 Hadoop简介 现今，互联网每天都产生海量的数据，现有工具对于TB、PB级别大规模分布式海量数据变得无力处理。 Google首先推出了处理大规模分布式数据的MapReduce计算范式，Doug &hellip;">
+  
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://yoyzhou.github.io/posts/2/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script type="text/javascript" src="http://t.papaapp.com/js/libs/jquery/1.7.2/jquery.js"></script>
+   <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <script src="/javascripts/modernizr-2.0.js"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+	      jax: ["input/TeX", "output/HTML-CSS"],
+		  tex2jax: {
+		  inlineMath: [ ['$', '$'], ["\\(", "\\)"] ],
+		  displayMath: [ ['$$', '$$'], ["\\[", "\\]"] ],
+		  processEscapes: true,
+		  skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+		}}
+   );
+</script>
+<script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML" type="text/javascript"></script>
+<script src="/javascripts/ender.js"></script>
+<script src="/javascripts/octopress.js" type="text/javascript"></script>
+<link href="/atom.xml" rel="alternate" title="Zhou's Blog" type="application/atom+xml">
+
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-34034666-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <header id="header" class="clearfix">    <div class="container">
+        <div class="col-group">
+            <div class="site-name ">
+                <a id="logo" href="/">
+                   Zhou&#8217;s Blog
+                </a>
+                <p class="description">There is no truth as such, there is only truth from a point of view [Nietzsche]</p>
+            </div>
+            <div>
+                <nav id="nav-menu" class="clearfix">
+                    <a class="index-nav current" href="/">Blog</a>
+<a class="archives-nav" href="/blog/archives">Archives</a>
+                </nav>
+            </div>
+        </div>
+    </div>
+</header>
+  <div id="body">
+    <div class="container">
+    	<div class="col-group">
+			  <div class="col-8" id="main">
+    <div class="res-cons">
+    
+    
+    
+      <article class="post">
+        
+  <header>
+    
+      <h2 class="post-title"><a href="/blog/2013/04/14/hadoop-in-action-reading-note/">Hadoop in Action学习笔记</a></h2>
+    
+    
+      <p class="post-meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-04-14T15:41:00-07:00" pubdate data-updated="true"></time>
+        
+         | <a href="/blog/2013/04/14/hadoop-in-action-reading-note/#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="post-content"><h4 id="hadoop">第一章 Hadoop简介</h4>
+
+<p>现今，互联网每天都产生海量的数据，现有工具对于TB、PB级别大规模分布式海量数据变得无力处理。</p>
+
+<p>Google首先推出了处理大规模分布式数据的MapReduce计算范式，Doug Cutting领导开发了一个开源版的MapReduce，后来成为Hadoop。</p>
+
+<h5 id="hadoop-1">什么是Hadoop</h5>
+
+<p>Hadoop是一个开源框架，可编写和运行分布式应用处理大规模数据。一般认为Hadoop包含两个核心部分：HDFS，Hadoop分布式文件系统和MapReduce，一种分布式编程范式（分布式存储和分布式计算）。</p>
+
+<pre><code>**优点：**
+• 方便
+• 健壮
+• 线性可扩展
+• 简单
+</code></pre>
+
+<h5 id="vs-">分布式系统  VS 大型单机服务器</h5>
+
+<pre><code>向外扩展 VS  向上扩展
+
+构建在一般/低端商用机器上，廉价
+
+高端服务器，价格昂贵
+</code></pre>
+
+<h5 id="hadoopsetihome">Hadoop设计理念和SETI@Home的区别</h5>
+
+<p>Hadoop设计用于数据密集型任务，遵循将程序向数据移动的设计哲学，即尽可能的保持数据不动，减少I/O的访问，程序文件的数量级相对于数据的数量级小得多</p>
+
+<p>SETI@Home设计用于计算密集型任务，遵循将数据向计算资源（计算机）移动的设计哲学；因为数据传输量小，但是需要大量的计算资源（CPU时间）</p>
+
+<h5 id="hadoopsql">Hadoop与SQL数据库的比较</h5>
+<p>都是处理数据，SQL数据库用于处理结构化数据</p>
+
+<p>Hadoop应用针对的是文本数据/可能是结构的也可能使非结构或者半结构化数据</p>
+
+<p>1. 向外扩展 代替向上扩展</p>
+
+<p>2. 用键/值对 代替关系表</p>
+
+<p>3. 用函数式编程（MapReduce）代替申明式查询（SQL）</p>
+
+<p>4. 用离线处理代替在线处理</p>
+
+<p>数据密集型分布式应用中，数据传输的代价昂贵，应保持数据存储和处理紧密的绑定在一起。</p>
+
+<h5 id="hadoop-2">Hadoop的历史</h5>
+<p>2004年 Goole发表Google文件系统（GFS）和MapReduce框架</p>
+
+<p>Doug Cutting将Nutch项目移植到GFS和MapReduce上，并设立了专门的项目充实这两种技术，于是就有了Hadoop</p>
+
+<p>2006年 Yahoo聘用Doug Cutting，让他和一个专门团队一起改进Hadoop</p>
+
+<p>2008年 Hahoop成为Apache的顶级项目</p>
+
+<h4 id="hadoop-3">第二章 初识Hadoop</h4>
+
+<p><strong>“运行Hadoop”意味着在不同服务器运行一组守护进程（daemons）:</strong></p>
+
+<pre><code>0 NameNode (名字节点)
+1 DataNode (数据节点)
+2 Secondary NameNode (次名字节点)
+3 JobTracker (作业跟踪节点)
+4 TaskTracker (任务跟踪节点)
+</code></pre>
+
+<p>Hadoop在分布式计算和分布式存储中都采用了<strong>主/从(Master/Slaver)</strong>的结构</p>
+
+<p>NameNode，JobTracker是Master节点</p>
+
+<p>DataNode，TaskTracker和Slaver节点</p>
+
+<h5 id="hadoop-4">运行Hadoop</h5>
+<p>配置文件：core-site.xml, hdfs-site.xml和mapred-site.xml</p>
+
+<p>conf/masters - master节点主机列表</p>
+
+<p>conf/slaves - slave节点主机列表</p>
+
+<p>运行的三种模式：本地（单机）模式，伪分布模式和全分布模式</p>
+
+<pre><code>bin/hadoop namenode -format
+bin/start-all.sh
+jps
+</code></pre>
+
+<h5 id="web">基于WEB的管理界面</h5>
+<p>NameNode状态界面： namenode-host:50070</p>
+
+<p>JobTracker状态界面： jobtacker-host:50030</p>
+
+<h4 id="hadoop-5">第三章 Hadoop组件</h4>
+
+<p><strong>HDFS文件系统</strong></p>
+
+<p>HDFS是一种文件系统，专为MapReduce这类框架下的大规模分布式处理而设计的</p>
+
+<p>可以处理单个的大数据集（比如100TB），而大多数文件系统物理实现这点。</p>
+
+<p><strong>？</strong>是不是说HDFS处理单个大数据集更加有效，而处理小文件的大量数据变现的不是很有优势，当然，如果这样也可以先把小文件组成大文件。</p>
+
+<p><strong>？</strong>文件要多大才能适合HDFS/Hadoop的处理呢?</p>
+
+<p>可不要为了数据大而大，数据应该在必要的清洗和预处理</p>
+
+<h5 id="hadoop-6">Hadoop的基本文件命令</h5>
+
+<p>hadoop fs -cmd &lt;args&gt;</p>
+
+<p>HDFS中，默认的根目录是/user/$USER 其中USER是你登录系统的用户名</p>
+
+<p>1. 添加文件和目录</p>
+
+<p><code>hadoop fs -mkdir &lt;dir-name&gt;</code></p>
+
+<p>将在/user/$USER目录下创建&lt;dir-name&gt;，如果&lt;dir-name&gt;包含多层目录且上层目录不存在，hadoop fs -mkdir会创建指定的多层目录结构。</p>
+
+<p>如:</p>
+
+<p><code>hadoop fs -mkdir inputs/dataset1 会创建/user/$USER/inputs/dataset1</code></p>
+
+<p>2. 列举文件清单</p>
+
+<p><code>hadoop fs -ls &lt;file-dir-name&gt;</code></p>
+
+<p>和Unix系统ls本地文件类似</p>
+
+<p><code>hadoop fs -lsr &lt;file-dir-name&gt;</code></p>
+
+<p>查看所有文件和文件的子目录，递归的列出文件清单</p>
+
+<p>3. 复制本地文件到HDFS </p>
+
+<p><code>hadoop fs -put &lt;file-dir-name-to-put-in-hdfs&gt; &lt;file-dir-on-hdfs&gt;</code></p>
+
+<p>4. 从HDFS上检索文件到本地系统</p>
+
+<p><code>hadoop fs -get &lt;file-dir-on-hdfs-to-get&gt; &lt;file-dir-name-on-localhost&gt;</code></p>
+
+<p>这是一个与hadoop fs -put相反的操作。</p>
+
+<p>5. 查看HDFS上文件的内容</p>
+
+<p><code>hadoop fs -cat &lt;file-name-to-cat&gt;</code></p>
+
+<p>例如：</p>
+
+<p><code>hadoop fs -cat example.txt</code></p>
+
+<p>同样假设文件在默认的工作目录/user/$USER下</p>
+
+<p>6. 删除文件/目录</p>
+
+<p><code>hadoop fs -rm &lt;file-name-to-remove&gt;</code></p>
+
+<p>例如：</p>
+
+<p><code>hadoop fs -rm example.txt</code></p>
+
+<p>这个命令用来删除文件，要删除文件夹是使用 -rmr 命令：</p>
+
+<p><code>hadoop fs -rmr &lt;dir-name-to-remove&gt;</code></p>
+
+<p>例如：</p>
+
+<p><code>hadoop fs -rmr input</code></p>
+
+<p>这里的<code>r</code>代表递归的删除文件。</p>
+
+<p>7. 查看文件命令帮助</p>
+
+<p><code>hadoop fs -help &lt;cmd&gt;</code></p>
+
+<p>例如：</p>
+
+<p><code>hadoop fs -help rmr</code></p>
+
+<p>查看rmr命令的帮助文件</p>
+
+<p>8. hadoop文件命令与Unix管道一起使用</p>
+
+<p>例如：</p>
+
+<p><code>hadoop fs -cat example.txt | head -n 20</code></p>
+
+<h5 id="hadoop-7">Hadoop数据的读和写</h5>
+
+<p>遵循并行处理数据分片原则的输入数据通常为单一的大文件。这也是Hadoop分布式文件系统的设计策略。</p>
+
+<p>FSDataInputStream支持随机读取，这一特性涉及到MapReduce的数据分片机制。</p>
+
+<p>随机读取，当一个任务失败时，恢复时不用从头读取文件，只需要从失败的位置进行恢复。</p>
+
+<p><strong>InputFormat</strong></p>
+
+<p>Hadoop分割与读取输入文件的方式在InputFormat接口中定义，TextInputFormat是InputFormat的默认实现。Hadoop提供的其他的InputFormat实现有：</p>
+
+<p>KeyValueTextInputFormat，SequenceFileInputFormat和NLineInputFormat</p>
+
+<p><strong>OutputFormat</strong></p>
+
+<p>通过使用IntWritable类变量可以提高reduce()的性能，IntWritable类的处理性能要比Text高。</p>
+
+<h4 id="mapreduce">第四章 编写MapReduce基础程序</h4>
+
+<p><strong>mapper container partitioner reducer</strong> </p>
+
+<h5 id="combiner">使用Combiner提升性能</h5>
+
+<p>Combiner作用上与Reduce等价，起到聚合、结合作用，原则上程序必须没有Combiner也能够得到正确的结果</p>
+
+<p>1. 网络洗牌时减少数据传输流量，考虑10亿条Mapper键值对的输出，如果没有Combiner会在网络洗牌过程中造成多大的流量</p>
+
+<p>2. 数据分布不均匀时，造成大量Mapper的键值对输出跑向同一个Reducer</p>
+
+<p>原理就是通过Combiner减少Mapper的输出数量以降低网络和Reducer上的压力，Combiner位于Mapper和Reducer中间，被视为是Reducer的助手，在数据转换上必须与Reducer等价，也就是如果我们去掉Combiner，Reducer的输出应该保持不变。</p>
+
+<p>但是Combiner未必会提高性能，这要看Combiner是否能有效的减少Mapper输出记录的数量。</p>
+
+<h4 id="mapreduce-1">第五章 高阶MapReduce</h4>
+
+<h5 id="mapreduce-2">MapReduce之间的依赖</h5>
+
+<p>Hadoop通过Job和JobControl类来管理作业之间的非线性依赖关系。</p>
+
+<p>x.addDependingJob(y)</p>
+
+<p>ChainMapper ChainReducer</p>
+
+<p>链接MapReduce是，mapper、reducer之间的输入输出按照值传递还是引用传递的问题。P100</p>
+
+<p>如果确保上游的Map/Reduce不是用其输出数据，或者下游Map/Reduce不改变上游的输出数据，可以使用by reference以提高一定的性能</p>
+
+<h5 id="section">联结不同来源的数据</h5>
+
+<p>1. Reduce侧的联结</p>
+
+<p>repartitioned join 重分区联结</p>
+
+<p>repartitioned sort-mergejoin 重分区排序-合并联结</p>
+
+<p>结合DataJoin包使用钩子处理数据流P93</p>
+
+<p>2. Mapper侧的联结P98</p>
+
+<p><strong>DistributedCache 分布式缓存</strong></p>
+
+<p>应用场景：一个数据源较大，另一个数据源可能小几个数量级，将较小的数据源装入内存，复制到所有的Mapper，在map阶段执行联结。通常小的数据源也叫做“背景数据”</p>
+
+<h4 id="section-1">第六章 编程实践</h4>
+
+<h5 id="section-2">本地模式</h5>
+
+<p><strong>1 计算的完整性检查</strong></p>
+
+<p>数学和逻辑错误在数据密集型程序中更加普遍，而它们往往并不明显！</p>
+
+<p>数学计数或者算术如何检查正确性，在分布式计算中数学公式可能要重新设计，但是如何验证计算的完整性和准确性也就十分的重要。</p>
+
+<p><strong>方法：</strong></p>
+
+<p>可是通过宏观的查看一些指标，比如平均值，整体计数、最大值等来进行初步验证</p>
+
+<p><strong>2 回归测试</strong></p>
+
+<p>可能代价会很大，但是可以选取一部分数据集进行测试。所谓回归测试就是在同一数据集上比较代码修改前后算法的输出结果是否一致，如果每次回归测试的结果都是一样的，那么可以判定修改没有导致出现新的问题。</p>
+
+<p><strong>3 考虑使用LONG而不是INT</strong></p>
+
+<h5 id="section-3">伪分布模式</h5>
+<p>1 日志</p>
+
+<p>2 JOBTRACKER的WEB管理界面</p>
+
+<p>3 杀掉作业</p>
+
+<h5 id="section-4">生产集群上的监控与调试</h5>
+<p>计数器 Reporter.incrCounter()</p>
+
+<p>跳过坏记录 skipping模式的设置P126</p>
+
+<p>用IsolationRunner重新运行出错的任务</p>
+
+<h5 id="section-5">性能调优</h5>
+
+<p><strong>Hadoop的线性可扩展性</strong></p>
+
+<h6 id="combiner-1">1 通过combiner来减少网络流量</h6>
+
+<h6 id="section-6">2 减少输入数据</h6>
+<pre><code>a. 采样数据，只处理数据的子集
+b. “重构”数据，仅使用需要的字段（要求开发人员清楚的了解数据和自己的业务需求）
+#上面两个方案一个是**横切**一个是**纵切**，都是减少输入数据的方法
+</code></pre>
+
+<h6 id="section-7">3 使用压缩</h6>
+
+<p>即使使用了combiner，在map阶段的输出也可能很大。这些中间数据必须被存储在磁盘上，并在网络上重排。压缩这些中间数据会提高大多数MapReduce作业的性能。Hadoop内置支持压缩和解压缩。</p>
+
+<pre><code>压缩的参数配置P130
+mapred.compress.map.output
+mapred.map.output.compression.codec
+SequenceFIleOutputFormat 序列文件输出
+</code></pre>
+
+<h6 id="jvm">4 重用JVM</h6>
+
+<p>mapred.job.reuse.jvm.num.task 指定一个JVM可以运行的最大任务数</p>
+
+<h6 id="section-8">5 根据猜测执行来运行</h6>
+
+<p>在所有的mapper完成之前，reducer都不会启动；类似的，在所有的reducer完成之前，一个作业也不会结束。</p>
+
+<p><strong>问题：当其中一个任务变慢时（注意不是失效），MapReduce如何处理？</strong></p>
+
+<p>Hadoop会注意到运行速度缓慢的任务，并安排在另一个节点上并行执行相同的任务。</p>
+
+<pre><code>**参数：**
+
+mapred.map.tasks.speculative.execution
+mapred.reduce.tasks.speculative.execution
+</code></pre>
+
+<h6 id="section-9">6 代码重构与算法重写</h6>
+
+<p>6.1 将Streaming程序重写为Java程序</p>
+
+<p>6.2 在一次作业中集中一次处理类似的任务，而不是每一个任务都启动一个作业，比如计算最大值、最小值和均值等在同一数据集上的计算可以在一个Job中完成，而不要分为不同的Job</p>
+
+<p>6.3 设计特定的新的适合MapReduce框架的算法</p>
+
+<h4 id="section-10">第七章 细则手册</h4>
+
+<h5 id="section-11">7.1 向任务传递作业定制的参数</h5>
+
+<p>在JobConf中定制自己的参数，在所有的Task中都能读取到。</p>
+
+<h5 id="section-12">7.2 探查任务特定信息</h5>
+
+<h5 id="section-13">7.3 划分为多个输出文件</h5>
+<p>MultipleOutputFormat 键/值区分，写入不同的文件， 一个Collector 不同文件名</p>
+
+<p>MultipleOutputs	属性区分，写入不同的文件，多个Collector写文件</p>
+
+<h5 id="section-14">7.4 以数据库作为输入输出</h5>
+<p><strong>DBOutputFormat</strong></p>
+
+<h5 id="section-15">7.5 保持输出的顺序</h5>
+
+<h4 id="hadoop-8">第八章 管理Hadoop</h4>
+
+<h5 id="section-16">8.1 为实际应用设置特定参数值</h5>
+
+<h5 id="section-17">8.2 系统体检</h5>
+<pre><code>bin/hadoop fsck &lt;path&gt; #file system check
+bin/hadoop dfsadmin -report
+</code></pre>
+
+<h5 id="section-18">8.3 权限设置</h5>
+
+<h5 id="section-19">8.4 配额管理</h5>
+<pre><code>bin/hadoop dfsadmin -setQuota &lt;N&gt; dir
+bin/hadoop dfsadmin -setSpaceQuota &lt;N&gt; dir
+bin/hadoop fs -count -q dir #显示目录的配额
+</code></pre>
+
+<h5 id="section-20">8.5 启动回收站</h5>
+
+<p>fs.trash.interval属性（以分钟为单位）</p>
+
+<h5 id="datanode">8.6 删减DataNode</h5>
+
+<pre><code>dfs.hosts.exclude=file-point-to-exclude-host-list
+bin/hadoop dfsadmin -refreshNodes
+</code></pre>
+
+<h5 id="datanode-1">8.7 增加DataNode</h5>
+
+<h5 id="namenodesnn">8.8 管理NameNode和SNN</h5>
+<p>减轻NameNode负担的一种方法是增加数据块的大小，以降低文件系统中元数据的数据量，dfs.block.size 默认64M</p>
+
+<h6 id="snn">SNN是做什么的？</h6>
+<p>取了一个不妥的名字。首先并不是NameNode的失效备份</p>
+
+<p>把SNN视为一个检查点服务器更为合适，用于合并下面两个文件以形成系统快照。</p>
+
+<pre><code>可能在0.21中被弃用
+FsImage
+EditLog
+</code></pre>
+
+<h5 id="namenode">8.9 恢复失效的NameNode</h5>
+<p>备份NameNode的元数据文件（dfs.name.dir）到SNN节点，或者其他多个节点。</p>
+
+<h5 id="section-21">8.10 感知网络布局和机架的设计</h5>
+<p><strong>DataNode数据块的副本策略</strong>
+标准副本为3个：</p>
+
+<p>第1个 在同一个DataNode上</p>
+
+<p>第2个 不同的机架上的DataNode上</p>
+
+<p>第3个 与第二个同机架的不同DataNode上</p>
+
+<p>如果大于3个副本，其他的随机放置的不同节点上</p>
+
+<p>topology.script.file.name</p>
+
+<p>机架感知，配置Hadoop是NameNode知道DataNode的机架分布结构</p>
+
+<h5 id="section-22">8.11 多用户作业调度</h5>
+<p>8.11.1 多个JobTracker</p>
+
+<p>8.11.2 公平调度器 （Facebook）</p>
+
+<h4 id="hadoop-9">第九章 在云上运行Hadoop</h4>
+<p><strong>租用 经济</strong>
+Amazon Web Services(AWS)</p>
+
+<p>Elastic Compute Clous(EC2) 弹性计算云</p>
+
+<p>Simple Storage Service(S3)简单存储服务</p>
+
+<p>1 AWS与外部网络通信的带宽需要收取费用，EC2内部不需要收费。</p>
+
+<p>2 先存储在S3 在从S3中复制到主节点</p>
+
+<p>S3中存储数据同样要收费 但是 存储空间可扩展、一次存储可以多次使用、资费相对低、S3和EC2是内部网，之间复制数据没有费用且速度快</p>
+
+<p>3 还可以直接将S3作为输入输出文件地址，而不用复制数据到HDFS</p>
+
+<h4 id="pignot-finished">第十章 用Pig编程（Not Finished）</h4>
+<p>Pig是架构在Hadoop之上的高级数据处理层。</p>
+
+<p><strong>易用性、高性能、大规模可扩展能力</strong>是所有Hadoop子项目的期望</p>
+
+<p><strong>“Pig吃任何东西”</strong></p>
+
+<p>Pig Latin命令运行： Grunt Shell、脚本文件、嵌入在Java程序中。</p>
+
+<h4 id="hivehadoop">第十一章 Hive及Hadoop群</h4>
+<p>Pig——一种高级数据流语言</p>
+
+<p>Hive——一种类SQL数据仓库基础设施</p>
+
+<p>HBase——一种模仿Google BigTable的分布式的、面向列的数据库</p>
+
+<p>ZooKeeper——一种用于管理分布式应用之间共享状态的可靠的协同系统</p>
+
+<p>Cascading——是Hadoop上用于组装和执行复杂数据处理工作流的一个API</p>
+
+<p>Hama——矩阵计算软件包，用于计算乘积、逆、特征值、特征向量和其他矩阵运算</p>
+
+<p>Mahout——基于Hadoop实现机器学习算法</p>
+
+<h5 id="hive">Hive</h5>
+<p>Hive是建立在Haddop基础之上的数据仓库软件包</p>
+
+<p>HiveQL——类SQL的数据查询语言</p>
+
+<p>MetaStore ——用于存放元数据的组件，存储在Derby关系数据库中（存取速度的考虑）</p>
+
+<p><code>---EOF---</code></p>
+
+</div>
+  
+  
+
+
+      </article>
+    
+    
+      <article class="post">
+        
+  <header>
+    
+      <h2 class="post-title"><a href="/blog/2013/04/08/weibo-scrapy-framework-with-multi-threading/">基于UID的WEIBO信息抓取框架WEIBO_SCRAPY</a></h2>
+    
+    
+      <p class="post-meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-04-08T20:55:00-07:00" pubdate data-updated="true"></time>
+        
+         | <a href="/blog/2013/04/08/weibo-scrapy-framework-with-multi-threading/#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="post-content"><p>本文介绍基于微博UID的SINA微博信息抓取框架WEIBO_SCRAPY。 WEIBO_SCRAPY是一个PYTHON实现的，使用多线程抓取WEIBO信息的框架。WEIBO_SCRAPY框架给用户提供WEIBO的模拟登录和多线程抓取微博信息的接口，让用户只需关心抓取的业务逻辑，而不用处理棘手的WEIBO模拟登录和多线程编程。</p>
+
+<h3 id="weiboscrapy">WEIBO_SCRAPY</h3>
+<p>WEIBO_SCRAPY是一个PYTHON实现的，使用基于微博UID的方式从WEIBO.COM页面抓取信息的框架。框架以微博UID为最小单位，为每一个UID分配一个抓取线程，因此每一个UID相当于一个<strong>抓取任务</strong>。WEIBO_SCRAPY内置微博模拟登录和多线程框架，让用户只需关注以微博UID为基础的抓取业务逻辑。具体的说，使用WEIBO_SCRAPY用户只需要重载WEIBO_SCRAPY的<strong>抓取任务</strong>方法为自己的抓取逻辑，即可实现多线程地抓取微博信息（详见下文<code>WEIBO_SCRAPY的实现</code>小节）。</p>
+
+<h3 id="weiboscrapy-1">WEIBO_SCRAPY的功能</h3>
+<p>1. 微博模拟登录</p>
+
+<p>2. 多线程抓取框架</p>
+
+<p>3. <strong>抓取任务</strong>接口</p>
+
+<p>4. 抓取参数配置</p>
+
+<h3 id="weiboscrapy-2">WEIBO_SCRAPY的实现</h3>
+
+<h4 id="section">1 微博模拟登录</h4>
+<p>请参考拙文<a href="/blog/2013/03/18/sina-weibo-login-simulator-in-python/">Python模拟登录新浪微薄（使用RSA加密方式和Cookies文件）</a></p>
+
+<h4 id="section-1">2 多线程抓取框架</h4>
+<p>WEIBO_SCRAPY使用<a href="http://docs.python.org/2/library/queue.html">Queue</a>实现多线程抓取框架，Queue中的元素为微博用户的UID，每一个抓取线程消费Queue中的UID，抓取线程在获得UID之后交给<strong>抓取任务</strong>处理该UID。框架实现<code>从某一个UID开始</code>和<code>从文件中加载UID列表</code>两种抓取方式，无论何种方式都有可能返回在抓取过程中新获得的UID(通过解析抓取的页面获得)，并加入到Queue中，对于从单一某个UID开始的方式，返回新获得的UID是推荐的做法，不然Queue中就只有开始UID一个抓取任务。</p>
+
+<blockquote>
+  <p>The Queue module implements multi-producer, multi-consumer queues. It is especially useful in threaded programming when information must be exchanged safely between multiple threads. </p>
+</blockquote>
+
+<p>关于更多Python多线程编程的知识，请参考拙文<a href="/blog/2013/02/28/python-threads-synchronization-locks/">Python线程同步机制: Locks, RLocks, Semaphores, Conditions, Events和Queues</a></p>
+
+<p>以下是WEIBO_SCRAPY多线程框架的实现代码，分别是抓取线程和抓取的主进程，在第二段代码中抓取的主进程生成用户指定数目的抓取进行执行抓取任务：</p>
+
+<p>抓取线程</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+<span class="line-number">19</span>
+<span class="line-number">20</span>
+<span class="line-number">21</span>
+<span class="line-number">22</span>
+<span class="line-number">23</span>
+<span class="line-number">24</span>
+<span class="line-number">25</span>
+<span class="line-number">26</span>
+<span class="line-number">27</span>
+<span class="line-number">28</span>
+<span class="line-number">29</span>
+<span class="line-number">30</span>
+<span class="line-number">31</span>
+<span class="line-number">32</span>
+<span class="line-number">33</span>
+<span class="line-number">34</span>
+<span class="line-number">35</span>
+<span class="line-number">36</span>
+<span class="line-number">37</span>
+<span class="line-number">38</span>
+<span class="line-number">39</span>
+<span class="line-number">40</span>
+<span class="line-number">41</span>
+<span class="line-number">42</span>
+<span class="line-number">43</span>
+<span class="line-number">44</span>
+<span class="line-number">45</span>
+<span class="line-number">46</span>
+<span class="line-number">47</span>
+<span class="line-number">48</span>
+<span class="line-number">49</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">class</span> <span class="nc">scrapy_threading</span><span class="p">(</span><span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">):</span>
+</span><span class="line">    <span class="sd">&quot;&quot;&quot;Thread class to handle scrapy task&quot;&quot;&quot;</span>
+</span><span class="line">
+</span><span class="line">    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">,</span> <span class="n">wanted</span><span class="p">):</span>
+</span><span class="line">        <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">do_task</span> <span class="o">=</span> <span class="n">task</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">wanted</span> <span class="o">=</span> <span class="n">wanted</span>
+</span><span class="line">
+</span><span class="line">    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span class="line">        <span class="k">global</span> <span class="n">visited_uids</span>
+</span><span class="line">        <span class="k">global</span> <span class="n">task_queue</span>
+</span><span class="line">        <span class="k">global</span> <span class="n">scraped</span>
+</span><span class="line">        <span class="k">global</span> <span class="n">lock</span>
+</span><span class="line">
+</span><span class="line">        <span class="k">while</span> <span class="n">scraped</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">wanted</span><span class="p">:</span>
+</span><span class="line">
+</span><span class="line">            <span class="c">#crawl info based on each uid</span>
+</span><span class="line">            <span class="k">if</span> <span class="n">task_queue</span><span class="p">:</span>
+</span><span class="line">
+</span><span class="line">                <span class="n">uid</span> <span class="o">=</span> <span class="n">task_queue</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+</span><span class="line">
+</span><span class="line">                <span class="k">if</span> <span class="n">uid</span> <span class="ow">in</span> <span class="n">visited_uids</span><span class="p">:</span> <span class="c">#already crawled</span>
+</span><span class="line">                    <span class="n">task_queue</span><span class="o">.</span><span class="n">task_done</span><span class="p">()</span>
+</span><span class="line">
+</span><span class="line">                <span class="k">else</span><span class="p">:</span>
+</span><span class="line">                    <span class="k">try</span><span class="p">:</span>
+</span><span class="line">                        <span class="n">gains</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_task</span><span class="p">(</span><span class="n">uid</span><span class="p">)</span>
+</span><span class="line">
+</span><span class="line">                        <span class="c">#per debug</span>
+</span><span class="line">                        <span class="n">wow</span> <span class="o">=</span> <span class="s">&#39;{0: &lt;25}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s">&#39;[&#39;</span> <span class="o">+</span> <span class="n">time</span><span class="o">.</span><span class="n">asctime</span><span class="p">()</span> <span class="o">+</span> <span class="s">&#39;] &#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s">&#39; uid_&#39;</span> <span class="o">+</span> <span class="s">&#39;{0: &lt;12}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">uid</span><span class="p">)</span>
+</span><span class="line">                        <span class="k">print</span> <span class="n">wow</span>
+</span><span class="line">                        <span class="k">for</span> <span class="n">uid</span> <span class="ow">in</span> <span class="n">gains</span><span class="p">:</span>
+</span><span class="line">                            <span class="n">task_queue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">uid</span><span class="p">)</span>
+</span><span class="line">
+</span><span class="line">                        <span class="c">#signals that queue job is done</span>
+</span><span class="line">                        <span class="n">task_queue</span><span class="o">.</span><span class="n">task_done</span><span class="p">()</span>
+</span><span class="line">
+</span><span class="line">                        <span class="c">#counting scrapied number</span>
+</span><span class="line">                        <span class="k">with</span> <span class="n">lock</span><span class="p">:</span>
+</span><span class="line">                            <span class="n">scraped</span> <span class="o">+=</span> <span class="mi">1</span>
+</span><span class="line">                            <span class="c">#per debug</span>
+</span><span class="line">                            <span class="k">print</span> <span class="s">&#39;scraped: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">scraped</span><span class="p">)</span>
+</span><span class="line">
+</span><span class="line">                    <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+</span><span class="line">                        <span class="k">print</span> <span class="n">e</span>
+</span><span class="line">                        <span class="k">pass</span>
+</span><span class="line">
+</span><span class="line">            <span class="k">else</span><span class="p">:</span>
+</span><span class="line">                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">30</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>抓取的主进程</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+<span class="line-number">19</span>
+<span class="line-number">20</span>
+<span class="line-number">21</span>
+<span class="line-number">22</span>
+<span class="line-number">23</span>
+<span class="line-number">24</span>
+<span class="line-number">25</span>
+<span class="line-number">26</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">def</span> <span class="nf">scrapy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span class="line">
+</span><span class="line">        <span class="n">login_status</span> <span class="o">=</span> <span class="n">login</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">login_username</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">login_password</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cookies_file</span><span class="p">)</span>
+</span><span class="line">
+</span><span class="line">        <span class="k">if</span> <span class="n">login_status</span><span class="p">:</span>
+</span><span class="line">
+</span><span class="line">            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_uid</span><span class="p">:</span>
+</span><span class="line">                <span class="n">task_queue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">start_uid</span><span class="p">)</span>
+</span><span class="line">
+</span><span class="line">            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">uids_file</span><span class="p">:</span>
+</span><span class="line">                <span class="n">uids_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__load_uids__</span><span class="p">()</span>
+</span><span class="line">                <span class="k">for</span> <span class="n">uid</span> <span class="ow">in</span> <span class="n">uids_list</span><span class="p">:</span>
+</span><span class="line">                    <span class="n">task_queue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">uid</span><span class="p">)</span>
+</span><span class="line">
+</span><span class="line">            <span class="k">else</span><span class="p">:</span> <span class="c">#start uid or uids file is needed</span>
+</span><span class="line">                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&#39;ERROR: Start uid or uids file is needed.&#39;</span><span class="p">)</span>
+</span><span class="line">
+</span><span class="line">            <span class="c">#spawn a pool of threads, and pass them queue instance </span>
+</span><span class="line">            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">thread_number</span><span class="p">):</span>
+</span><span class="line">                <span class="n">st</span> <span class="o">=</span> <span class="n">scrapy_threading</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scrapy_do_task</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">wanted</span><span class="p">)</span>
+</span><span class="line">                <span class="n">st</span><span class="o">.</span><span class="n">setDaemon</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+</span><span class="line">                <span class="n">st</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+</span><span class="line">
+</span><span class="line">
+</span><span class="line">            <span class="n">task_queue</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+</span><span class="line">
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<h4 id="section-2">3 抓取任务接口</h4>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line">  <span class="k">def</span> <span class="nf">scrapy_do_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uid</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+</span><span class="line">        <span class="sd">&#39;&#39;&#39;</span>
+</span><span class="line"><span class="sd">        User needs to overwrite this method to perform uid-based scrapy task.</span>
+</span><span class="line"><span class="sd">        @param uid: weibo uid</span>
+</span><span class="line"><span class="sd">        @return: a list of uids gained from this task, optional</span>
+</span><span class="line"><span class="sd">        &#39;&#39;&#39;</span>
+</span><span class="line">        <span class="c">#return []</span>
+</span><span class="line">        <span class="k">pass</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p>以上是抓取任务的接口，WEIBO_SCRAPY暴露scrapy_do_task方法，用户只需要继承WEIBO_SCRAPY的scrapy类并且重写scrapy_do_task方法为自己的抓取业务逻辑。
+像前面提到过的一样，抓取任务是基于微博用户的UID的，所以scrapy_do_task方法有一个uid参数。</p>
+
+<h4 id="section-3">4 抓取参数配置</h4>
+<p>WEIBO_SCRAPY提供简单易用的账户信息配置和抓取参数配置，在<code>scrapy.ini</code>文件中即可轻松的完成参数的配置，以下是一个配置文件的样本：</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="p">[</span><span class="n">login_account_info</span><span class="p">]</span>
+</span><span class="line"><span class="c">#account info for logining weibo </span>
+</span><span class="line"><span class="n">login_username</span> <span class="o">=</span> <span class="n">ur_login_account_name_here</span>
+</span><span class="line"><span class="n">login_uid</span> <span class="o">=</span> <span class="n">weibo_uid_of_login_account_here</span>
+</span><span class="line"><span class="n">login_password</span> <span class="o">=</span> <span class="n">account_password_here</span>
+</span><span class="line"><span class="n">cookies_file</span> <span class="o">=</span> <span class="n">weibo_cookies</span><span class="o">.</span><span class="n">dat</span>
+</span><span class="line">
+</span><span class="line"><span class="p">[</span><span class="n">scrapy_settings</span><span class="p">]</span>
+</span><span class="line"><span class="n">thread_number</span> <span class="o">=</span> <span class="mi">50</span>
+</span><span class="line"><span class="n">wanted</span> <span class="o">=</span> <span class="mi">100000</span>
+</span><span class="line"><span class="c">#only one property of below 2 is required, and start_uid takes advantage of uids_file</span>
+</span><span class="line"><span class="c">#also note that arguments from constructor will overwrite this two properties </span>
+</span><span class="line"><span class="n">start_uid</span> <span class="o">=</span> <span class="mi">1197161814</span>
+</span><span class="line"><span class="n">uids_file</span> <span class="o">=</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p>用户也可以在scrapy类的构造器中指定配置文件的位置。</p>
+
+<h3 id="weiboscrapy-3">WEIBO_SCRAPY的使用</h3>
+<p>使用WEIBO_SCRAPY用户只需要继承WEIBO_SCRAPY的scrapy类并且重写scrapy_do_task方法为自己的抓取业务逻辑。</p>
+
+<p>以下示例代码可在<a href="https://github.com/yoyzhou/weibo_scrapy/blob/master/example.py">weibo_scrapy/example.py</a>中找到。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+<span class="line-number">19</span>
+<span class="line-number">20</span>
+<span class="line-number">21</span>
+<span class="line-number">22</span>
+<span class="line-number">23</span>
+<span class="line-number">24</span>
+<span class="line-number">25</span>
+<span class="line-number">26</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="c">#!/usr/bin/env python</span>
+</span><span class="line"><span class="c">#coding=utf8</span>
+</span><span class="line">
+</span><span class="line"><span class="kn">from</span> <span class="nn">weibo_scrapy</span> <span class="kn">import</span> <span class="n">scrapy</span>
+</span><span class="line">
+</span><span class="line">
+</span><span class="line"><span class="k">class</span> <span class="nc">my_scrapy</span><span class="p">(</span><span class="n">scrapy</span><span class="p">):</span>
+</span><span class="line">
+</span><span class="line">    <span class="k">def</span> <span class="nf">scrapy_do_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uid</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+</span><span class="line">         <span class="sd">&#39;&#39;&#39;</span>
+</span><span class="line"><span class="sd">        User needs to overwrite this method to perform uid-based scrapy task.</span>
+</span><span class="line"><span class="sd">        @param uid: weibo uid</span>
+</span><span class="line"><span class="sd">        @return: a list of uids gained from this task, optional</span>
+</span><span class="line"><span class="sd">        &#39;&#39;&#39;</span>
+</span><span class="line">         <span class="nb">super</span><span class="p">(</span><span class="n">my_scrapy</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwds</span><span class="p">)</span>
+</span><span class="line">
+</span><span class="line">         <span class="c">#do what you want with uid here, note that this scrapy is uid based, so make sure there are uids in task queue, </span>
+</span><span class="line">         <span class="c">#or gain new uids from this function</span>
+</span><span class="line">         <span class="k">print</span> <span class="s">&#39;WOW...&#39;</span>
+</span><span class="line">         <span class="k">return</span> <span class="s">&#39;replace this string with uid list which gained from this task&#39;</span>
+</span><span class="line">
+</span><span class="line"><span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+</span><span class="line">
+</span><span class="line">    <span class="n">s</span> <span class="o">=</span> <span class="n">my_scrapy</span><span class="p">(</span><span class="n">start_uid</span> <span class="o">=</span> <span class="s">&#39;1197161814&#39;</span><span class="p">)</span>
+</span><span class="line">    <span class="n">s</span><span class="o">.</span><span class="n">scrapy</span><span class="p">()</span>
+</span><span class="line">
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<h3 id="section-4">项目源代码</h3>
+<p>WEIBO_SCRAPY项目的源代码地址：<a href="https://github.com/yoyzhou/weibo_scrapy">weibo_scrapy</a>，<a href="https://github.com/yoyzhou/weibo_scrapy/fork">Fork it</a>。</p>
+
+<h3 id="section-5">相关阅读</h3>
+<p>1. <a href="/blog/2013/03/18/sina-weibo-login-simulator-in-python/">Python模拟登录新浪微薄（使用RSA加密方式和Cookies文件）</a></p>
+
+<p>2. <a href="/blog/2013/03/23/extract-data-with-beautifulsoup-taking-weibo-4-example/">使用Beautiful Soup抽取网页数据，解析微博用户关注信息</a></p>
+
+<p><code>---EOF---</code></p>
+
+<!-- PUT reference-style links below-->
+
+</div>
+  
+  
+
+
+      </article>
+    
+    
+      <article class="post">
+        
+  <header>
+    
+      <h2 class="post-title"><a href="/blog/2013/03/23/extract-data-with-beautifulsoup-taking-weibo-4-example/">使用Beautiful Soup抽取网页数据，解析微博用户关注信息</a></h2>
+    
+    
+      <p class="post-meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-03-23T17:14:00-07:00" pubdate data-updated="true"></time>
+        
+         | <a href="/blog/2013/03/23/extract-data-with-beautifulsoup-taking-weibo-4-example/#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="post-content"><p>本文介绍了Beautiful Soup，PYTHON实现的HTML/XML标记的解析器；简要描述了Beautiful Soup的安装以及使用；最后以抽取微博用户关注信息为例详细的演示了如何使用Beautiful Soup。</p>
+
+<h3 id="beautiful-soup">什么是Beautiful Soup</h3>
+<p><a href="http://www.crummy.com/software/BeautifulSoup/">Beautiful Soup</a>是用PYTHON实现的HTML/XML标记的解析器。它提供简单和通用的方法对HTML/XML语法树进行浏览（navigating），搜索（searching）以及修改（searching）。它甚至可以针对不规范的标记生成语法树，可以大大地减少开发人员的时间。</p>
+
+<blockquote>
+  <p>Beautiful Soup is an HTML/XML parser for Python that can turn even invalid markup into a parse tree. It provides simple, idiomatic ways of navigating, searching, and modifying the parse tree. It commonly saves programmers hours or days of work. <cite><a href="http://www.crummy.com/software/BeautifulSoup/bs3/documentation.html">Beautiful Soup</a></cite></p>
+</blockquote>
+
+<h3 id="beautiful-soup-1">安装Beautiful Soup</h3>
+<p>安装Beautiful Soup很简单，如果你已经安装过pip或者easy_install,如果您还没有安装过Python安装工具，建议您参考<a href="/blog/2012/08/12/install-python-setuptools-slash-distribute-for-both-python2-and-python3/">Install Python Setuptools/Distribute for Python2 and Python3</a>。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+</pre></td><td class="code"><pre><code class="bash"><span class="line">sudo easy_install beautifulsoup4
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p>需要注意的是：BeautifulSoup4支持Python 2.x和3.x，而BeautifulSoup3只支持Python 2.x，Beautiful Soup官网建议大家应该使用BeautifulSoup4而不是BeautifulSoup3。</p>
+
+<blockquote>
+  <p>Beautiful Soup 3 only works on Python 2.x, but Beautiful Soup 4 also works on Python 3.x. Beautiful Soup 4 is faster, has more features, and works with third-party parsers like lxml and html5lib. You should use Beautiful Soup 4 for all new projects.</p>
+</blockquote>
+
+<h3 id="beautiful-soup-2">使用Beautiful Soup</h3>
+<p>首先，导入Beautiful Soup。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="kn">from</span> <span class="nn">bs4</span> <span class="kn">import</span> <span class="n">BeautifulSoup</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p>注意如果你使用的是BeautifulSoup3，那么导入语句可能是：</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="kn">from</span> <span class="nn">BeautifulSoup</span> <span class="kn">import</span> <span class="n">BeautifulSoup</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p>然后，使用BeautifulSoup为你生成标记语言的语法树。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="n">soup</span> <span class="o">=</span> <span class="n">BeautifulSoup</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="s">&#39;my.html&#39;</span><span class="p">))</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p>得到了语法树soup之后，就可以调用相应的接口浏览，搜索和修改你的标记文件。比如下面的语句搜索my.html中所有’action-type’是’user_item’的div：</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="n">soup</span><span class="o">.</span><span class="n">findAll</span><span class="p">(</span><span class="s">&#39;div&#39;</span><span class="p">,</span> <span class="n">attrs</span><span class="o">=</span><span class="p">{</span><span class="s">&#39;action-type&#39;</span> <span class="p">:</span> <span class="s">&#39;user_item&#39;</span><span class="p">})</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>上面简单介绍了Beautiful Soup的安装和使用，更多Beautiful Soup的文档请参考官方文档<a href="http://www.crummy.com/software/BeautifulSoup/bs3/documentation.html">bs3</a>和<a href="http://www.crummy.com/software/BeautifulSoup/">bs4</a>。下面我们以从WEIBO.COM页面中解析出用户的关注信息为例，介绍Beautiful Soup的使用。</p>
+
+<h3 id="beautiful-soup-3">Beautiful Soup实例：解析微博用户的关注信息</h3>
+<p>社交网络中的关注信息（followings）是用户对什么人/东西感兴趣的一种表达，从关注信息中可以得到用户的兴趣偏好，又因为关注信息有用户自己维护，所以相对于粉丝（followers）信息更能体现个人偏好。以微博来说，关注就是用户关注的人，一般认为用户是根据自己的兴趣爱好出发有选择的关注帐号。</p>
+
+<p>微博中有两种关注，我的关注和他人的关注，由于这两种关注的页面结构不同，所以在解析的时候需要分别对待，但是分析的过程是同理的，只是在抽取数据是的页面标签不一样，使用上面的Beautiful Soup工具，抽取时标签的定位会很容易，这就是使用Beautiful Soup带来的好处。</p>
+
+<h4 id="inspect-element">1.使用浏览器的<code>Inspect Element</code>功能理解页面的结构</h4>
+
+<p>最新版的Chrome和Firefox都自身内置有<code>Inspect Element</code>功能，在编写代码时，可能要经常的使用它来定位要寻找的页面元素。Chrome浏览器<code>Inspect Element</code>的使用请参考<a href="https://developers.google.com/chrome-developer-tools/docs/elements">Chrome Developer Tools - Elements Panel</a>。
+</div>
+  
+  
+    <footer>
+      <a rel="full-article" href="/blog/2013/03/23/extract-data-with-beautifulsoup-taking-weibo-4-example/">Read on &rarr;</a>
+    </footer>
+  
+
+
+      </article>
+    
+    
+      <article class="post">
+        
+  <header>
+    
+      <h2 class="post-title"><a href="/blog/2013/03/18/sina-weibo-login-simulator-in-python/">Python模拟登录新浪微薄（使用RSA加密方式和Cookies文件）</a></h2>
+    
+    
+      <p class="post-meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-03-18T21:15:00-07:00" pubdate data-updated="true"></time>
+        
+         | <a href="/blog/2013/03/18/sina-weibo-login-simulator-in-python/#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="post-content"><p>本文简单介绍如何使用<a href="http://www.python.org/">PYTHON</a>模拟用户登录新浪微薄,文中使用的代码可以在<a href="https://github.com/yoyzhou/weibo_login">github.com/yoyzhou/weibo_login</a>中找到。</p>
+
+<h3 id="section">为什么要模拟登录</h3>
+<p>一般来说获取微薄数据的方式有两种，一种是使用WEIBO官方提供的API接口；另外一种方式就是从WEIBO网站页面上抓取数据。从网面上抓取数据，相对于使用WEIBO API更加灵活，可控性更强，不用受WEIBO API调用次数的限制；但是易受WEIBO页面结构变动的影响，使得程序可靠性低，不适合在生产系统中使用。</p>
+
+<blockquote>
+  <p>当然还有一种是由<strong>别人</strong>提供下载的，下载WEIBO数据可以考虑<a href="http://www.cnpameng.com/">爬盟中国</a>和<a href="http://www.datatang.com/">数据堂</a></p>
+</blockquote>
+
+<p>本文要讲的内容跟页面抓取数据有关，但是像<a href="weibo.com">WEIBO.COM</a>这样的<a href="http://en.wikipedia.org/wiki/SNS">SNS</a>网站必须事先登录之后才能访问到她的数据，所以如何模拟用户登录WEIBO，就成为从网页上抓取微薄数据的第一步。</p>
+
+<h3 id="section-1">模拟登录相关资源</h3>
+<p>目前网上有很多关于模拟用户登录WEIBO的文章:</p>
+
+<p>+ 使用<a href="https://addons.mozilla.org/en-us/firefox/addon/httpfox/">HTTPFOX</a>来侦测用户登录WEIBO.COM的过程<a href="http://blog.csdn.net/yonglaixiazaide/article/details/7923468">[1]</a>, <a href="http://www.jishuziyuan.com/archive/supeercrsky/8016047.html">[2]</a></p>
+
+<p>+ 模拟登录PHP<a href="http://blog.csdn.net/lgg201/article/details/8050606">[3]</a></p>
+
+<p>+ Python实现<a href="http://hi.baidu.com/enmzqbeadvfhiye/item/4018b4e7775cd3edfa42bad3">[4]</a>, <a href="http://www.cnblogs.com/mouse-coder/archive/2013/03/03/2941265.html">[5]</a></p>
+
+<p>+ JAVA实现<a href="http://marspring.mobi/http-client-weibo/">[6]</a></p>
+
+<p>其中<a href="http://hi.baidu.com/enmzqbeadvfhiye/item/4018b4e7775cd3edfa42bad3">[4] 新浪微博登录rsa加密方法</a>介绍了使用RSA2加密方式模拟登录，<a href="http://www.cnblogs.com/mouse-coder/archive/2013/03/03/2941265.html">[5] 模拟新浪微博登录（Python+RSA加密算法）</a>和<a href="http://marspring.mobi/http-client-weibo/">[6] httpclient登录新浪微博（非SDK方式）</a>分别给出了RSA加密算法模拟登录WEIBO的PYTHON和JAVA实现。</p>
+
+<blockquote>
+  <p>关于RSA加密方式，参考维基词条RSA<a href="http://zh.wikipedia.org/wiki/RSA%E5%8A%A0%E5%AF%86%E6%BC%94%E7%AE%97%E6%B3%95">[zh]</a>, <a href="http://en.wikipedia.org/wiki/RSA">[en]</a></p>
+</blockquote>
+
+<p>关注PYTHON实现的读者可以阅读下面关于此事的豆瓣讨论：</p>
+
+<blockquote>
+  <p>Python模拟新浪微薄登录的豆瓣讨论<a href="http://www.douban.com/note/201767245/">[7]</a></p>
+</blockquote>
+
+<h3 id="pythonrsa2cookies">Python+RSA2+Cookies实现模拟登录</h3>
+<p>由于新浪登录加密方式的改变，参见<a href="http://www.douban.com/note/201767245/">[7]</a>，这里仅介绍使用RSA加密方法登录，要使用RSA加密方式，必须安装RSA模块，所以：
+</div>
+  
+  
+    <footer>
+      <a rel="full-article" href="/blog/2013/03/18/sina-weibo-login-simulator-in-python/">Read on &rarr;</a>
+    </footer>
+  
+
+
+      </article>
+    
+    
+      <article class="post">
+        
+  <header>
+    
+      <h2 class="post-title"><a href="/blog/2013/02/28/python-threads-synchronization-locks/">Python线程同步机制: Locks, RLocks, Semaphores, Conditions, Events和Queues</a></h2>
+    
+    
+      <p class="post-meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-02-28T23:24:00-08:00" pubdate data-updated="true"></time>
+        
+         | <a href="/blog/2013/02/28/python-threads-synchronization-locks/#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="post-content"><blockquote>
+  <p>翻译自<a href="http://www.laurentluce.com/">Laurent Luce</a>的博客<br />
+原文名称：Python threads synchronization: Locks, RLocks, Semaphores, Conditions, Events and Queues<br />
+原文连接：<a href="http://www.laurentluce.com/posts/python-threads-synchronization-locks-rlocks-semaphores-conditions-events-and-queues/">http://www.laurentluce.com/posts/python-threads-synchronization-locks-rlocks-semaphores-conditions-events-and-queues/</a></p>
+</blockquote>
+
+<p>本文详细地阐述了Python线程同步机制。你将学习到以下有关Python线程同步机制：Lock，RLock，Semaphore，Condition，Event和Queue，还有Python的内部是如何实现这些机制的。
+本文给出的程序的源代码可以在<a href="https://github.com/laurentluce/python-tutorials/tree/master/threads">github</a>上找到。</p>
+
+<p>首先让我们来看一个没有使用线程同步的简单程序。</p>
+<h2>线程（Threading）</h2>
+<p>我们希望编程一个从一些URL中获得内容并且将内容写入文件的程序，完成这个程序可以不使用线程，为了加快获取的速度，我们使用2个线程，每个线程处理一半的URL。</p>
+
+<p>注：完成这个程序的最好方式是使用一个URL队列，但是以下面的例子开始我的讲解更加合适。</p>
+
+<p>类FetchUrls是threading.Thread的子类，他拥有一个URL列表和一个写URL内容的文件对象。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+<span class="line-number">19</span>
+<span class="line-number">20</span>
+<span class="line-number">21</span>
+<span class="line-number">22</span>
+<span class="line-number">23</span>
+<span class="line-number">24</span>
+<span class="line-number">25</span>
+<span class="line-number">26</span>
+<span class="line-number">27</span>
+<span class="line-number">28</span>
+<span class="line-number">29</span>
+<span class="line-number">30</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">class</span> <span class="nc">FetchUrls</span><span class="p">(</span><span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">):</span>
+</span><span class="line">  <span class="sd">&quot;&quot;&quot;</span>
+</span><span class="line"><span class="sd">  下载URL内容的线程</span>
+</span><span class="line"><span class="sd">  &quot;&quot;&quot;</span>
+</span><span class="line">
+</span><span class="line">  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">urls</span><span class="p">,</span> <span class="n">output</span><span class="p">):</span>
+</span><span class="line">    <span class="sd">&quot;&quot;&quot;</span>
+</span><span class="line"><span class="sd">    构造器</span>
+</span><span class="line">
+</span><span class="line"><span class="sd">    @param urls 需要下载的URL列表</span>
+</span><span class="line"><span class="sd">    @param output 写URL内容的输出文件</span>
+</span><span class="line"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span class="line">    <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</span><span class="line">    <span class="bp">self</span><span class="o">.</span><span class="n">urls</span> <span class="o">=</span> <span class="n">urls</span>
+</span><span class="line">    <span class="bp">self</span><span class="o">.</span><span class="n">output</span> <span class="o">=</span> <span class="n">output</span>
+</span><span class="line">
+</span><span class="line">  <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span class="line">    <span class="sd">&quot;&quot;&quot;</span>
+</span><span class="line"><span class="sd">    实现父类Thread的run方法，打开URL，并且一个一个的下载URL的内容</span>
+</span><span class="line"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span class="line">    <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">urls</span><span class="p">:</span>
+</span><span class="line">      <span class="n">url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">urls</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+</span><span class="line">      <span class="n">req</span> <span class="o">=</span> <span class="n">urllib2</span><span class="o">.</span><span class="n">Request</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+</span><span class="line">      <span class="k">try</span><span class="p">:</span>
+</span><span class="line">        <span class="n">d</span> <span class="o">=</span> <span class="n">urllib2</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span><span class="n">req</span><span class="p">)</span>
+</span><span class="line">      <span class="k">except</span> <span class="n">urllib2</span><span class="o">.</span><span class="n">URLError</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+</span><span class="line">        <span class="k">print</span> <span class="s">&#39;URL </span><span class="si">%s</span><span class="s"> failed: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">e</span><span class="o">.</span><span class="n">reason</span><span class="p">)</span>
+</span><span class="line">      <span class="bp">self</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+</span><span class="line">      <span class="k">print</span> <span class="s">&#39;write done by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+</span><span class="line">      <span class="k">print</span> <span class="s">&#39;URL </span><span class="si">%s</span><span class="s"> fetched by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>main函数启动了两个线程，之后让他们下载URL内容。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+</span><span class="line">  <span class="c"># URL列表1</span>
+</span><span class="line">  <span class="n">urls1</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;http://www.google.com&#39;</span><span class="p">,</span> <span class="s">&#39;http://www.facebook.com&#39;</span><span class="p">]</span>
+</span><span class="line">  <span class="c"># URL列表2</span>
+</span><span class="line">  <span class="n">urls2</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;http://www.yahoo.com&#39;</span><span class="p">,</span> <span class="s">&#39;http://www.youtube.com&#39;</span><span class="p">]</span>
+</span><span class="line">  <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="s">&#39;output.txt&#39;</span><span class="p">,</span> <span class="s">&#39;w+&#39;</span><span class="p">)</span>
+</span><span class="line">  <span class="n">t1</span> <span class="o">=</span> <span class="n">FetchUrls</span><span class="p">(</span><span class="n">urls1</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
+</span><span class="line">  <span class="n">t2</span> <span class="o">=</span> <span class="n">FetchUrls</span><span class="p">(</span><span class="n">urls2</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
+</span><span class="line">  <span class="n">t1</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+</span><span class="line">  <span class="n">t2</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+</span><span class="line">  <span class="n">t1</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+</span><span class="line">  <span class="n">t2</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+</span><span class="line">  <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</span><span class="line">
+</span><span class="line"><span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+</span><span class="line">  <span class="n">main</span><span class="p">()</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>上面的程序将出现两个线程同时写一个文件的情况，导致文件一团乱码。我们需要找到一种在给定的时间里只有一个线程写文件的方法。实现的方法就是使用像锁（Locks）这样的线程同步机制。</p>
+
+<h2>锁（Lock）</h2>
+<p>锁有两种状态：被锁（locked）和没有被锁（unlocked）。拥有acquire()和release()两种方法，并且遵循一下的规则：</p>
+<ul>
+<li>如果一个锁的状态是unlocked，调用acquire()方法改变它的状态为locked；</li>
+<li>如果一个锁的状态是locked，acquire()方法将会阻塞，直到另一个线程调用release()方法释放了锁；</li>
+<li>如果一个锁的状态是unlocked调用release()会抛出RuntimeError异常；</li>
+<li>如果一个锁的状态是locked，调用release()方法改变它的状态为unlocked。</li>
+</ul>
+<p>解决上面两个线程同时写一个文件的问题的方法就是：我们给类FetchUrls的构造器中传入一个锁（lock），使用这个锁来保护文件操作，实现在给定的时间只有一个线程写文件。下面的代码只显示了关于lock部分的修改。完整的源码可以在threads/lock.py中找到。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+<span class="line-number">19</span>
+<span class="line-number">20</span>
+<span class="line-number">21</span>
+<span class="line-number">22</span>
+<span class="line-number">23</span>
+<span class="line-number">24</span>
+<span class="line-number">25</span>
+<span class="line-number">26</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">class</span> <span class="nc">FetchUrls</span><span class="p">(</span><span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">):</span>
+</span><span class="line">  <span class="o">...</span>
+</span><span class="line">
+</span><span class="line">  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">urls</span><span class="p">,</span> <span class="n">output</span><span class="p">,</span> <span class="n">lock</span><span class="p">):</span>
+</span><span class="line">    <span class="o">...</span>
+</span><span class="line">    <span class="bp">self</span><span class="o">.</span><span class="n">lock</span> <span class="o">=</span> <span class="n">lock</span>	<span class="c">#传入的lock对象</span>
+</span><span class="line">
+</span><span class="line">  <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span class="line">    <span class="o">...</span>
+</span><span class="line">    <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">urls</span><span class="p">:</span>
+</span><span class="line">      <span class="o">...</span>
+</span><span class="line">      <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>	<span class="c">#获得lock对象，lock状态变为locked，并且阻塞其他线程获取lock对象（写文件的权利）</span>
+</span><span class="line">      <span class="k">print</span> <span class="s">&#39;lock acquired by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+</span><span class="line">      <span class="bp">self</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+</span><span class="line">      <span class="k">print</span> <span class="s">&#39;write done by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+</span><span class="line">      <span class="k">print</span> <span class="s">&#39;lock released by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+</span><span class="line">      <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>	<span class="c">#释放lock对象，lock状态变为unlocked，其他的线程可以重新获取lock对象</span>
+</span><span class="line">      <span class="o">...</span>
+</span><span class="line">
+</span><span class="line"><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+</span><span class="line">  <span class="o">...</span>
+</span><span class="line">  <span class="n">lock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+</span><span class="line">  <span class="o">...</span>
+</span><span class="line">  <span class="n">t1</span> <span class="o">=</span> <span class="n">FetchUrls</span><span class="p">(</span><span class="n">urls1</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">lock</span><span class="p">)</span>
+</span><span class="line">  <span class="n">t2</span> <span class="o">=</span> <span class="n">FetchUrls</span><span class="p">(</span><span class="n">urls2</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">lock</span><span class="p">)</span>
+</span><span class="line">  <span class="o">...</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p><img src="http://www.laurentluce.com/images/blog/threads/lock.png" /></p>
+
+<p>以下是程序的输出：</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+</pre></td><td class="code"><pre><code class="sh"><span class="line"><span class="nv">$ </span>python locks.py
+</span><span class="line">lock acquired by Thread-2
+</span><span class="line">write <span class="k">done</span> by Thread-2
+</span><span class="line">lock released by Thread-2
+</span><span class="line">URL http://www.youtube.com fetched by Thread-2
+</span><span class="line">lock acquired by Thread-1
+</span><span class="line">write <span class="k">done</span> by Thread-1
+</span><span class="line">lock released by Thread-1
+</span><span class="line">URL http://www.facebook.com fetched by Thread-1
+</span><span class="line">lock acquired by Thread-2
+</span><span class="line">write <span class="k">done</span> by Thread-2
+</span><span class="line">lock released by Thread-2
+</span><span class="line">URL http://www.yahoo.com fetched by Thread-2
+</span><span class="line">lock acquired by Thread-1
+</span><span class="line">write <span class="k">done</span> by Thread-1
+</span><span class="line">lock released by Thread-1
+</span><span class="line">URL http://www.google.com fetched by Thread-1
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>从上面的输出我们可以看出，写文件的操作被锁保护，没有出现两个线程同时写一个文件的现象。</p>
+
+<p>下面我们看一下Python内部是如何实现锁（Lock）的。我正在使用的Python版本是Linux操作系统上的Python 2.6.6。</p>
+
+<p>threading模块的Lock()方法就是thread.allocate_lock，代码可以在Lib/threading.py中找到。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="n">Lock</span> <span class="o">=</span> <span class="n">_allocate_lock</span>
+</span><span class="line"><span class="n">_allocate_lock</span> <span class="o">=</span> <span class="n">thread</span><span class="o">.</span><span class="n">allocate_lock</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+</div>
+  
+  
+    <footer>
+      <a rel="full-article" href="/blog/2013/02/28/python-threads-synchronization-locks/">Read on &rarr;</a>
+    </footer>
+  
+
+
+      </article>
+    
+    
+      <article class="post">
+        
+  <header>
+    
+      <h2 class="post-title"><a href="/blog/2012/08/12/install-python-setuptools-slash-distribute-for-both-python2-and-python3/">Install Python Setuptools/Distribute for Python 2.x and Python 3.x</a></h2>
+    
+    
+      <p class="post-meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2012-08-12T20:23:00-07:00" pubdate data-updated="true"></time>
+        
+         | <a href="/blog/2012/08/12/install-python-setuptools-slash-distribute-for-both-python2-and-python3/#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="post-content"><p>Since <a href="http://pypi.python.org/pypi/setuptools/">Setuptools</a> doesn’t support Python3.* so far, for Python3.* we choose <a href="http://pypi.python.org/pypi/distribute/">Distribute</a>, <em><strong>it is a fork of the Setuptools project.</strong></em></p>
+
+<blockquote><p>Distribute is intended to replace Setuptools as the standard method for working with Python module distributions.</p><footer><strong>@PyPI Distribute</strong> <cite><a href="http://pypi.python.org/pypi/distribute/#disclaimers">pypi.python.org/pypi/distribute/&hellip;</a></cite></footer></blockquote>
+
+<h3 id="install-python-setuptools-with-easyinstall-for-python-2x">Install python Setuptools with easy_install for Python 2.x</h3>
+
+<p>1 Download setuptools from http://pypi.python.org/pypi/setuptools/, select the appropriate OS/version you want.</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+</pre></td><td class="code"><pre><code class="bash"><span class="line">sudo sh Downloads/setuptools-0.6c11-py2.7.egg
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p>Output:</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+</pre></td><td class="code"><pre><code class="bash"><span class="line">Processing setuptools-0.6c11-py2.7.egg
+</span><span class="line">Copying setuptools-0.6c11-py2.7.egg to /usr/local/lib/python2.7/dist-packages
+</span><span class="line">Adding setuptools 0.6c11 to easy-install.pth file
+</span><span class="line">Installing easy_install script to /usr/local/bin
+</span><span class="line">Installing easy_install-2.7 script to /usr/local/bin
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<h3 id="install-python-distribute-with-easyinstall-for-python-3x">Install python Distribute with easy_install for Python 3.x</h3>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+</pre></td><td class="code"><pre><code class="bash"><span class="line">curl -O http://python-distribute.org/distribute_setup.py
+</span><span class="line">sudo &lt;python-cmd&gt; distribute_setup.py
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p>Output:</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+</pre></td><td class="code"><pre><code class="bash"><span class="line">Adding distribute 0.6.28 to easy-install.pth file
+</span><span class="line">Installing easy_install script to /usr/local/bin
+</span><span class="line">Installing easy_install-3.2 script to /usr/local/bin
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p><strong>Note:</strong> Make sure &lt;python-cmd&gt; is a python3.* command, in my PC, Python2.* command is python, while the Python3.* command is python3,  use &lt;python-cmd&gt; –version to check out version of &lt;python-cmd&gt;. </p>
+
+<h3 id="use-easyinstall-2x-and-3x">Use easy_install 2.x and 3.x</h3>
+<p>Now per installing 2.x packages, using:</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+</pre></td><td class="code"><pre><code class="bash"><span class="line">easy_install-2.7  &lt;package-name&gt;
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p>while using</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+</pre></td><td class="code"><pre><code class="bash"><span class="line">easy_install-3.2  &lt;package-name&gt;
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p>to install version 3.x packages.</p>
+
+<p><code>---EOF---</code></p>
+
+</div>
+  
+  
+
+
+      </article>
+    
+    
+      <article class="post">
+        
+  <header>
+    
+      <h2 class="post-title"><a href="/blog/2012/08/11/git-fundamentals-learning-notes-of-pro-git-part2/">Git Fundamentals - Branch: Learning Notes of Pro Git</a></h2>
+    
+    
+      <p class="post-meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2012-08-11T16:15:00-07:00" pubdate data-updated="true"></time>
+        
+         | <a href="/blog/2012/08/11/git-fundamentals-learning-notes-of-pro-git-part2/#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="post-content"><h2 id="branch">分支(BRANCH)</h2>
+
+<p><span class="pullquote-right" data-pullquote="git中创建分支的操作就像移动指针那么简单，因为git分支的本质是指向commit对象的可变指针。"><br />
+理解分支之前再来回顾一下前面所讲到的git与其他版本控制系统的区别<strong>“Git 保存的不是文件差异或者变化量,而只是一系列文件快照”</strong>。就是这个差别使得git分支的实现要比其他版本控制系统要轻松的多，git的分支是<em>“难以置信的轻量级”</em>，分支操作几乎在瞬间完成，而不像其他版本控制系统需要创建一个完整的源代码目录副本，对于大型项目来说需要耗费大量的项目时间。git中创建分支的操作就像移动指针那么简单，因为git分支的本质是指向commit对象的可变指针。      <br />
+</span></p>
+
+<p>下面我们介绍git分支的一般操作：  </p>
+
+<h3 id="git-branch-branch-name">git branch &lt;branch-name&gt;</h3>
+<p>从当前提交点创建一个新的分支<br />
+git branch myBranch  </p>
+
+<h3 id="git-checkout-branch-name">git checkout &lt;branch-name&gt;</h3>
+<p>切换当前工作目录到某一分支，当你切换到分支时，git的HEAD指针就指向了你切换到的分支，这样里就能够在另外的分支里工作了，这里HEAD就是标志当前工作分支的一个指针。<br />
+git checkout myBranch</p>
+
+<p>有一个快捷的方式创建一个新分支并切换到该分支<br />
+git checkout -b myBranch<br />
+这条命令就相当于执行了上面两条命令。  </p>
+
+<p>讲完基本的创建分支和检出分支操作之后，将介绍合并(merge)操作。  </p>
+
+<h3 id="git">git中合并有两种方式：快进合并和三方合并</h3>
+
+<p>1 快进合并(Fast Forward): 当你想要并入(merge in)的分支是并进(merge into)分支的直接下游时，git采用快进的合并方式，如：<br />
+C0 &lt;&#8211; C1 &lt;&#8211; C2 &lt;&#8211; C3 &lt;&#8211; C4 <br />
+                 |               |      <br />
+               master           myBranch <br />
+当我们打算将myBranch(merge in branch)并入master(merge into branch)分支时，由于myBranch是master的直接下游，git只需将指针直接右移到C4，这就相当于快进了。<br />
+具体操作如下：<br />
+	git checkout master #切换到master分区
+	git meger myBranch #合并myBranch分区到master分区</p>
+
+<p>2 三方合并(Recursive Merge): 当并入分区和并进分区不再是直接的上下游时，即出现了分叉，git将找出两者的共同祖先提交使用三方合并。</p>
+
+<h3 id="section">合并冲突</h3>
+
+<p>合并产生冲突时，git会提示产生冲突的文件，只有冲突解决之后，merge才能完成，实际上是用户手动处理冲突之后提交冲突文件。
+</div>
+  
+  
+    <footer>
+      <a rel="full-article" href="/blog/2012/08/11/git-fundamentals-learning-notes-of-pro-git-part2/">Read on &rarr;</a>
+    </footer>
+  
+
+
+      </article>
+    
+    
+      <article class="post">
+        
+  <header>
+    
+      <h2 class="post-title"><a href="/blog/2012/08/09/git-fundamentals-learning-note-of-pro-git/">Git Fundamentals: Learning Note of Pro Git</a></h2>
+    
+    
+      <p class="post-meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2012-08-09T22:30:00-07:00" pubdate data-updated="true"></time>
+        
+         | <a href="/blog/2012/08/09/git-fundamentals-learning-note-of-pro-git/#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="post-content"><h2 id="git">git基础</h2>
+
+<h3 id="git-1">git优点</h3>
+<pre><code>1 直接快照,而非比较差异
+不像集中式版本管理系统那样只记录不同版本之间的Deta, 而是直接快照整个项目文件，这使得Git更像是一个文件系统
+
+2 近乎所有操作都可本地执行
+
+3 时刻保持数据完整性
+通过数据内容校验和计算(checksum)
+
+4 多数操作仅添加数据
+</code></pre>
+
+<h3 id="git-2">git配置文件的类型和位置</h3>
+
+<pre><code>/etc/gitconfig 系统级别的git的配置文件 通过 git config --system 选项指定进行配置
+
+
+～/.gitconfig 用户级别的配置文件 通过 git config --global 选项指定进行配置
+
+
+.git/config(当前工作项目目录下) 项目级别的配置文件
+</code></pre>
+
+<h2 id="git-3">git命令</h2>
+
+<h3 id="git-init">git init</h3>
+<p>初始化git仓库</p>
+
+<h3 id="git-status">git status</h3>
+<p>查看git repos库状态<br />
+status的形式:未跟踪，未修改，修改，暂存<br />
+运行了git add之后又作了修订的文件,需要重新运行git add把最新版本重新暂存起来。</p>
+
+<h4 id="git-4">演示git仓库中文件状态的例子</h4>
+<pre><code>1.vim &lt;file&gt; -- untracked v0  
+2.git add &lt;file&gt; -- tracked &amp; staged v0  
+3.git commit -m '' -- version v0  
+4.vim &lt;file&gt; -- tracked &amp; modified &amp; staged v0  
+5.git add &lt;file&gt; -- tracked &amp; staged v1  
+6.vim &lt;file&gt; -- tracked &amp; modified &amp; staged v1  
+7.git commit -m '' -- version v1  
+</code></pre>
+
+<h3 id="git-diff">git diff</h3>
+<p>–查看尚未暂存文件更新了什么，即查看工作目录中当前文件与暂存区快照之间的差异。用上面的例子来说，假设我们在第4步后面执行git diff, 这个命令查看的将是文件&lt;file&gt;在第4步[修改过但是还未暂存]与第3步[Staged v0]的差异  </p>
+
+<h3 id="git-diff---cached--staged">git diff –cached/–staged</h3>
+<p>查看已经暂存起来的文件和上次提交时的快照之间的差异。还是用上面的例子，假设我们在第7步后面执行命令git diff –staged，将查看文件&lt;file&gt;在第5步[Staged v1]和第3步[Version v0]之间的变化</p>
+
+<h3 id="git-commit--m-message-for-commit">git commit -m ‘message for commit…’</h3>
+<p>在之进行commit之前,一定要确认还有什么修改过的或新建的文件还没有git add过,否则提交的时候不会记录这些还没暂存起来的变化。所以,每次准备提交前,先用下,是不是都已暂存起来了,然后再运行提交命令git status看是不是都已经暂存起来了，然后再执行命令git commit。</p>
+
+<h3 id="git-rm-file">git rm &lt;file&gt;</h3>
+<p>Remove file(s) from git’s tracking list, meanwhile delete the file(s)</p>
+
+<h3 id="git-rm---cached-file">git rm –cached &lt;file&gt;</h3>
+<p>Remove file(s) from git’s tracking list, but keep file(s) as cached, file(s) will not be removed.</p>
+
+<h3 id="git-mv-filefrom-fileto">git mv file_from file_to</h3>
+<p>Move file in git repos, equals to:</p>
+
+<pre><code>1 mv file_from file_to  
+2 git rm file_from  
+3 git add file_to  
+</code></pre>
+
+<h3 id="git-log--options">git log [-options]</h3>
+<p>View commit history<br />
+-p 展开每一次提交的diffs<br />
+-n 仅显示最近n次提交<br />
+–stat 显示每次提交的文件修改统计信息<br />
+–pretty 指定显示格式，oneline、short、full、fuller和format(后面指定格式)<br />
+–since 从什么时间开始<br />
+etc. 更多选项请使用 git log –help</p>
+
+<h3 id="git-commit---amend">git commit –amend</h3>
+<p>进行重新提交操作，可修改上一次提交的commit comment或者添加忘记staged的更新</p>
+
+<h3 id="git-reset-head-file">git reset HEAD &lt;file&gt;</h3>
+<p>撤销对文件&lt;file&gt;的暂存操作，比如你需要对某一个文件进行单独提交时，可以：<br />
+	git add . #将所有的文件暂存<br />
+	git reset HEAD &lt;file&gt; #撤销对某文件的暂存<br />
+	git commit -m ‘commit message’<br />
+	git add &lt;file&gt;<br />
+	[可能的文件&lt;file&gt;的修改]<br />
+	git commit &lt;file&gt; -m ‘commit &lt;file&gt; seperately’  </p>
+
+<h3 id="git-checkout---file">git checkout –&lt;file&gt;</h3>
+<p>取消对文件的修改，慎用。此命令将文件恢复到文件修改前的版本/暂存区内容，工作目录中所有对该文件的修改都将丢失。<br />
+在git 1.7.9.5中测试可省略“–”直接使用git checkout &lt;file&gt;</p>
+
+<h2 id="git-5">git远程仓库</h2>
+
+<h3 id="git-remote--v">git remote -v</h3>
+<p>查看远程库信息 -v选项显示远程库地址<br />
+</div>
+  
+  
+    <footer>
+      <a rel="full-article" href="/blog/2012/08/09/git-fundamentals-learning-note-of-pro-git/">Read on &rarr;</a>
+    </footer>
+  
+
+
+      </article>
+    
+    
+      <article class="post">
+        
+  <header>
+    
+      <h2 class="post-title"><a href="/blog/2012/08/05/add-latex-support-for-octopress/">使用kramdown和MathJax给博客添加Latex支持</a></h2>
+    
+    
+      <p class="post-meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2012-08-05T15:24:00-07:00" pubdate data-updated="true"></time>
+        
+         | <a href="/blog/2012/08/05/add-latex-support-for-octopress/#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="post-content"><blockquote><p>kramdown (sic, not Kramdown or KramDown, just kramdown) is a free GPL-licensed Ruby library for parsing and converting a superset of Markdown.  It is completely written in Ruby, supports standard Markdown.</p><footer><strong>@kramdown</strong> <cite><a href="http://kramdown.rubyforge.org/index.html">kramdown.rubyforge.org/&hellip;</a></cite></footer></blockquote>
+
+<h2 id="install-kramdown">Install kramdown</h2>
+<p>First of all make sure you have ruby installed on your box:</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+</pre></td><td class="code"><pre><code class=""><span class="line">$ ruby --version # or
+</span><span class="line">$ which ruby</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p>If command &#8220;which ruby&#8221; returns nothing, then you should install it first.</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+</pre></td><td class="code"><pre><code class=""><span class="line">$ sudo apt-cache search ruby # to chech out the available ruby package
+</span><span class="line">$ sudo apt-get install ruby[*.*] # to install *.* version of ruby</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p>Also you can use <a href="https://rvm.io/">RVM</a>, aka Ruby Version Manager, to install/manage your ruby entries, but actually I am not able to install ruby 1.9.2 approperately following the instruction from Octopress site on my PC which is <em>ubuntu 12.04</em>.</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><figcaption><span>Install kramdown </span></figcaption>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+</pre></td><td class="code"><pre><code class="sh"><span class="line"><span class="nv">$ </span>sudo gem install kramdown
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<h2 id="change-configyml-and-gemfile-to-include-kramdown">Change _config.yml and Gemfile to include kramdown</h2>
+<p>Change markdown engine to kramdown</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><figcaption><span>Change markdown engine to kramdown _config.yml </span></figcaption>
+<div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+</pre></td><td class="code"><pre><code class="yaml"><span class="line"><span class="p-Indicator">[</span><span class="nv">...</span><span class="p-Indicator">]</span>
+</span><span class="line"><span class="l-Scalar-Plain">markdown</span><span class="p-Indicator">:</span> <span class="l-Scalar-Plain">kramdown</span>
+</span><span class="line"><span class="p-Indicator">[</span><span class="nv">...</span><span class="p-Indicator">]</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+</div>
+  
+  
+    <footer>
+      <a rel="full-article" href="/blog/2012/08/05/add-latex-support-for-octopress/">Read on &rarr;</a>
+    </footer>
+  
+
+
+      </article>
+    
+    
+      <article class="post">
+        
+  <header>
+    
+      <h2 class="post-title"><a href="/blog/2012/08/02/welcome/">Welcome</a></h2>
+    
+    
+      <p class="post-meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2012-08-02T22:44:00-07:00" pubdate data-updated="true"></time>
+        
+         | <a href="/blog/2012/08/02/welcome/#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="post-content">
+</div>
+  
+  
+
+
+      </article>
+    
+      <div class="page-navigator">
+        <div class="nav-center">
+        <a href="/blog/archives">Archives</a>
+        </div>
+      </div>
+     </div>
+  </div>
+    
+  <aside id="secondary">
+  
+    
+<section class="widget">
+	<h3 class="widget-title">About Me</h3>
+	<p><code style="font-size: 14px;">Writing is the best way of learning</code></p>
+</section>
+<section class="widget">
+	<h3 class="widget-title">Recent Posts</h3>
+	<ul class="widget-list">
+		
+     	<li>
+      	  <a href="/blog/2013/06/04/mahout-clustering-with-hadoop/">在Hadoop上运行Mahout KMeans聚类分析</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/26/clustering-with-mahout/">Mahout与聚类分析</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/13/hadoop-write-ur-own-rawcomparator/">使用RawComparator加速Hadoop程序</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/10/hadoop-serialization-and-writable-object-2/">Hadoop序列化与Writable接口(二)</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/09/hadoop-serialization-and-writable-object-1/">Hadoop序列化与Writable接口(一)</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/29/viz-following-networks-of-weibo-celebrities/">微博名人关注网络的社会网络分析</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/29/a-kinda-betweenness-centrality-algorithm/">A Kinda Betweenness Centrality Algorithm</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/28/studying-notes-a-set-of-measures-of-centrality-based-on-betweenness/">A Set of Measures of Centrality Based on Betweenness</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/21/adding-filter-in-hadoop-mapper-class/">Adding Filter in Hadoop Mapper Class</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/14/steps-of-programming-hadoop-with-eclipse/">使用Eclipse开发MapReduce程序的步骤</a>
+      	</li>
+    	
+	</ul>
+</section>
+
+<section class="widget">
+  <h3>GitHub Repos</h3>
+  <ul id="gh_repos" class="widget-list">
+    <li class="loading">Status updating&#8230;</li>
+  </ul>
+  
+  <a href="https://github.com/yoyzhou">@yoyzhou</a> on GitHub
+  
+  <script type="text/javascript">
+    $.domReady(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'yoyzhou',
+            count: 0,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+
+
+
+  
+  </aside>
+
+
+      	</div>
+    </div>
+  </div>
+  <footer id="footer">
+  	<div class="container">
+	Copyright &copy; 2014 - yoyzhou -
+  <span class="credit">Powered by <a rel="nofollow" href="http://octopress.org">Octopress</a> on <a rel="nofollow" href="http://pages.github.com/">GitHubPages</a>
+  </span>
+  - <span class="credit">Theme by <a rel="nofollow" href="http://pagecho.com">Cho</a></span>
+
+
+</div>
+
+  </footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'yoyzhou';
+      
+        
+        var disqus_script = 'count.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+
+
+
+
+</body>
+</html>

@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: rsa2 | Zhou's Blog]]></title>
+  <link href="http://yoyzhou.github.io/blog/categories/rsa2/atom.xml" rel="self"/>
+  <link href="http://yoyzhou.github.io/"/>
+  <updated>2014-11-02T01:05:30-07:00</updated>
+  <id>http://yoyzhou.github.io/</id>
+  <author>
+    <name><![CDATA[yoyzhou]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Python模拟登录新浪微薄（使用RSA加密方式和Cookies文件）]]></title>
+    <link href="http://yoyzhou.github.io/blog/2013/03/18/sina-weibo-login-simulator-in-python/"/>
+    <updated>2013-03-18T21:15:00-07:00</updated>
+    <id>http://yoyzhou.github.io/blog/2013/03/18/sina-weibo-login-simulator-in-python</id>
+    <content type="html"><![CDATA[<p>本文简单介绍如何使用<a href="http://www.python.org/">PYTHON</a>模拟用户登录新浪微薄,文中使用的代码可以在<a href="https://github.com/yoyzhou/weibo_login">github.com/yoyzhou/weibo_login</a>中找到。</p>
+
+<h3 id="section">为什么要模拟登录</h3>
+<p>一般来说获取微薄数据的方式有两种，一种是使用WEIBO官方提供的API接口；另外一种方式就是从WEIBO网站页面上抓取数据。从网面上抓取数据，相对于使用WEIBO API更加灵活，可控性更强，不用受WEIBO API调用次数的限制；但是易受WEIBO页面结构变动的影响，使得程序可靠性低，不适合在生产系统中使用。</p>
+
+<blockquote>
+  <p>当然还有一种是由<strong>别人</strong>提供下载的，下载WEIBO数据可以考虑<a href="http://www.cnpameng.com/">爬盟中国</a>和<a href="http://www.datatang.com/">数据堂</a></p>
+</blockquote>
+
+<p>本文要讲的内容跟页面抓取数据有关，但是像<a href="weibo.com">WEIBO.COM</a>这样的<a href="http://en.wikipedia.org/wiki/SNS">SNS</a>网站必须事先登录之后才能访问到她的数据，所以如何模拟用户登录WEIBO，就成为从网页上抓取微薄数据的第一步。</p>
+
+<h3 id="section-1">模拟登录相关资源</h3>
+<p>目前网上有很多关于模拟用户登录WEIBO的文章:</p>
+
+<p>+ 使用<a href="https://addons.mozilla.org/en-us/firefox/addon/httpfox/">HTTPFOX</a>来侦测用户登录WEIBO.COM的过程<a href="http://blog.csdn.net/yonglaixiazaide/article/details/7923468">[1]</a>, <a href="http://www.jishuziyuan.com/archive/supeercrsky/8016047.html">[2]</a></p>
+
+<p>+ 模拟登录PHP<a href="http://blog.csdn.net/lgg201/article/details/8050606">[3]</a></p>
+
+<p>+ Python实现<a href="http://hi.baidu.com/enmzqbeadvfhiye/item/4018b4e7775cd3edfa42bad3">[4]</a>, <a href="http://www.cnblogs.com/mouse-coder/archive/2013/03/03/2941265.html">[5]</a></p>
+
+<p>+ JAVA实现<a href="http://marspring.mobi/http-client-weibo/">[6]</a></p>
+
+<p>其中<a href="http://hi.baidu.com/enmzqbeadvfhiye/item/4018b4e7775cd3edfa42bad3">[4] 新浪微博登录rsa加密方法</a>介绍了使用RSA2加密方式模拟登录，<a href="http://www.cnblogs.com/mouse-coder/archive/2013/03/03/2941265.html">[5] 模拟新浪微博登录（Python+RSA加密算法）</a>和<a href="http://marspring.mobi/http-client-weibo/">[6] httpclient登录新浪微博（非SDK方式）</a>分别给出了RSA加密算法模拟登录WEIBO的PYTHON和JAVA实现。</p>
+
+<blockquote>
+  <p>关于RSA加密方式，参考维基词条RSA<a href="http://zh.wikipedia.org/wiki/RSA%E5%8A%A0%E5%AF%86%E6%BC%94%E7%AE%97%E6%B3%95">[zh]</a>, <a href="http://en.wikipedia.org/wiki/RSA">[en]</a></p>
+</blockquote>
+
+<p>关注PYTHON实现的读者可以阅读下面关于此事的豆瓣讨论：</p>
+
+<blockquote>
+  <p>Python模拟新浪微薄登录的豆瓣讨论<a href="http://www.douban.com/note/201767245/">[7]</a></p>
+</blockquote>
+
+<h3 id="pythonrsa2cookies">Python+RSA2+Cookies实现模拟登录</h3>
+<p>由于新浪登录加密方式的改变，参见<a href="http://www.douban.com/note/201767245/">[7]</a>，这里仅介绍使用RSA加密方法登录，要使用RSA加密方式，必须安装RSA模块，所以：
+<!-- more --></p>
+
+<h4 id="pythonrsapython-rsahttpspypipythonorgpypirsa311">1.安装PYTHON实现的RSA加密算法模块<a href="https://pypi.python.org/pypi/rsa/3.1.1">python-rsa</a>.</h4>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="p">&amp;</span>gt<span class="p">;</span> easy_install rsa
+</span></code></pre></td></tr></table></div></figure>
+python-rsa的文档地址<a href="http://stuvel.eu/files/python-rsa-doc/index.html">http://stuvel.eu/files/python-rsa-doc/index.html</a></p>
+
+<h4 id="rsa">2.使用RSA加密用户登录密码</h4>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="k">def</span> <span class="nf">get_pwd_rsa</span><span class="p">(</span><span class="n">pwd</span><span class="p">,</span> <span class="n">servertime</span><span class="p">,</span> <span class="n">nonce</span><span class="p">):</span>
+</span><span class='line'>    <span class="err">“””</span>
+</span><span class='line'>        <span class="n">Get</span> <span class="n">rsa2</span> <span class="n">encrypted</span> <span class="n">password</span><span class="p">,</span> <span class="n">using</span> <span class="n">RSA</span> <span class="n">module</span> <span class="kn">from</span> <span class="nn">https</span><span class="p">:</span><span class="o">//</span><span class="n">pypi</span><span class="o">.</span><span class="n">python</span><span class="o">.</span><span class="n">org</span><span class="o">/</span><span class="n">pypi</span><span class="o">/</span><span class="n">rsa</span><span class="o">/</span><span class="mf">3.1</span><span class="o">.</span><span class="mi">1</span><span class="p">,</span> <span class="n">documents</span> <span class="n">can</span> <span class="n">be</span> <span class="n">accessed</span> <span class="n">at</span>
+</span><span class='line'>        <span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="n">stuvel</span><span class="o">.</span><span class="n">eu</span><span class="o">/</span><span class="n">files</span><span class="o">/</span><span class="n">python</span><span class="o">-</span><span class="n">rsa</span><span class="o">-</span><span class="n">doc</span><span class="o">/</span><span class="n">index</span><span class="o">.</span><span class="n">html</span>
+</span><span class='line'>    <span class="err">“””</span>
+</span><span class='line'>    <span class="c">#n, n parameter of RSA public key, which is published by WEIBO.COM</span>
+</span><span class='line'>    <span class="c">#Hardcoded here but you can also find it from values return from prelogin status above</span>
+</span><span class='line'>    <span class="n">weibo_rsa_n</span> <span class="o">=</span> <span class="err">‘</span><span class="n">EB2A38568661887FA180BDDB5CABD5F21C7BFD59C090CB2D245A87AC253062882729293E5506350508E7F9AA3BB77F4333231490F915F6D63C55FE2F08A49B353F444AD3993CACC02DB784ABBB8E42A9B1BBFFFB38BE18D78E87A0E41B9B8F73A928EE0CCEE1F6739884B9777E4FE9E88A1BBE495927AC4A799B3181D6442443</span><span class="err">’</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span><span class="c">#e, exponent parameter of RSA public key, WEIBO uses 0x10001, which is 65537 in Decimal</span>
+</span><span class='line'><span class="n">weibo_rsa_e</span> <span class="o">=</span> <span class="mi">65537</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">message</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">servertime</span><span class="p">)</span> <span class="o">+</span> <span class="s">&#39;</span><span class="se">\t</span><span class="s">&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">nonce</span><span class="p">)</span> <span class="o">+</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">pwd</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">#construct WEIBO RSA Publickey using n and e above, note that n is a hex string</span>
+</span><span class='line'><span class="n">key</span> <span class="o">=</span> <span class="n">rsa</span><span class="o">.</span><span class="n">PublicKey</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">weibo_rsa_n</span><span class="p">,</span> <span class="mi">16</span><span class="p">),</span> <span class="n">weibo_rsa_e</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">#get encrypted password</span>
+</span><span class='line'><span class="n">encropy_pwd</span> <span class="o">=</span> <span class="n">rsa</span><span class="o">.</span><span class="n">encrypt</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">#trun back encrypted password binaries to hex string</span>
+</span><span class='line'><span class="k">return</span> <span class="n">binascii</span><span class="o">.</span><span class="n">b2a_hex</span><span class="p">(</span><span class="n">encropy_pwd</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+</code></pre>
+
+<h4 id="cookies">3.验证用户登录是否成功，并且保存Cookies</h4>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'> <span class="n">data</span> <span class="o">=</span> <span class="n">urllib2</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span><span class="n">login_url</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+</span><span class='line'> <span class="c">#Verify login feedback, check whether result is TRUE</span>
+</span><span class='line'> <span class="n">patt_feedback</span> <span class="o">=</span> <span class="err">‘</span><span class="n">feedBackUrlCallBack</span><span class="p">((</span><span class="o">.*</span><span class="p">))</span><span class="err">’</span>
+</span><span class='line'> <span class="n">p</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">patt_feedback</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">MULTILINE</span><span class="p">)</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="n">feedback</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="n">feedback_json</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">feedback</span><span class="p">)</span>
+</span><span class='line'> <span class="k">if</span> <span class="n">feedback_json</span><span class="p">[</span><span class="err">‘</span><span class="n">result</span><span class="err">’</span><span class="p">]:</span>
+</span><span class='line'> 	<span class="n">cookie_jar2</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">cookie_file</span><span class="p">,</span><span class="n">ignore_discard</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">ignore_expires</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span> <span class="c">#Save Cookies</span>
+</span><span class='line'> 	<span class="k">return</span> <span class="mi">1</span>
+</span><span class='line'> <span class="k">else</span><span class="p">:</span>
+</span><span class='line'> 	<span class="k">return</span> <span class="mi">0</span>
+</span></code></pre></td></tr></table></div></figure></p>
+
+<h3 id="section-2">存在的问题</h3>
+<p>登入过程中返回ERROR-4049:需要输入验证码，这个问题在<a href="http://www.cnblogs.com/mouse-coder/archive/2013/03/03/2941265.html">[5] 模拟新浪微博登录（Python+RSA加密算法）</a>中也有提到。</p>
+
+<h3 id="section-3">源代码</h3>
+<p>文中代码片段的源码地址<a href="https://github.com/yoyzhou/weibo_login">github.com/yoyzhou/weibo_login</a></p>
+
+<h3 id="section-4">相关阅读</h3>
+
+<p>1. <a href="/blog/2013/03/23/extract-data-with-beautifulsoup-taking-weibo-4-example/">使用Beautiful Soup抽取网页数据，解析微博用户关注信息</a>，介绍如何使用Beautiful Soup抽取网页数据。</p>
+
+<p>2. <a href="/blog/2013/04/08/weibo-scrapy-framework-with-multi-threading/">基于UID的WEIBO信息抓取框架WEIBO_SCRAPY</a>，详细介绍了多线程WEIBO数据抓取框架WEIBO_SCRAPY。</p>
+
+<p><code>---EOF---</code></p>
+
+]]></content>
+  </entry>
+  
+</feed>

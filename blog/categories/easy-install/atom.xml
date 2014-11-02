@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: easy install | Zhou's Blog]]></title>
+  <link href="http://yoyzhou.github.io/blog/categories/easy-install/atom.xml" rel="self"/>
+  <link href="http://yoyzhou.github.io/"/>
+  <updated>2014-11-02T01:05:30-07:00</updated>
+  <id>http://yoyzhou.github.io/</id>
+  <author>
+    <name><![CDATA[yoyzhou]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Install Python Setuptools/Distribute for Python 2.x and Python 3.x]]></title>
+    <link href="http://yoyzhou.github.io/blog/2012/08/12/install-python-setuptools-slash-distribute-for-both-python2-and-python3/"/>
+    <updated>2012-08-12T20:23:00-07:00</updated>
+    <id>http://yoyzhou.github.io/blog/2012/08/12/install-python-setuptools-slash-distribute-for-both-python2-and-python3</id>
+    <content type="html"><![CDATA[<p>Since <a href="http://pypi.python.org/pypi/setuptools/">Setuptools</a> doesn’t support Python3.* so far, for Python3.* we choose <a href="http://pypi.python.org/pypi/distribute/">Distribute</a>, <em><strong>it is a fork of the Setuptools project.</strong></em></p>
+
+<p><blockquote><p>Distribute is intended to replace Setuptools as the standard method for working with Python module distributions.</p><footer><strong>@PyPI Distribute</strong> <cite><a href='http://pypi.python.org/pypi/distribute/#disclaimers'>pypi.python.org/pypi/distribute/&hellip;</a></cite></footer></blockquote></p>
+
+<h3 id="install-python-setuptools-with-easyinstall-for-python-2x">Install python Setuptools with easy_install for Python 2.x</h3>
+
+<p>1 Download setuptools from http://pypi.python.org/pypi/setuptools/, select the appropriate OS/version you want.</p>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>sudo sh Downloads/setuptools-0.6c11-py2.7.egg&lt;/p&gt;
+</span><span class='line'>
+</span><span class='line'>&lt;p&gt;
+</span></code></pre></td></tr></table></div></figure>
+Output:</p>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>Processing setuptools-0.6c11-py2.7.egg
+</span><span class='line'>Copying setuptools-0.6c11-py2.7.egg to /usr/local/lib/python2.7/dist-packages
+</span><span class='line'>Adding setuptools 0.6c11 to easy-install.pth file
+</span><span class='line'>Installing easy_install script to /usr/local/bin
+</span><span class='line'>Installing easy_install-2.7 script to /usr/local/bin
+</span></code></pre></td></tr></table></div></figure></p>
+
+<h3 id="install-python-distribute-with-easyinstall-for-python-3x">Install python Distribute with easy_install for Python 3.x</h3>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>curl -O http://python-distribute.org/distribute_setup.py
+</span><span class='line'>sudo &lt;python-cmd&gt; distribute_setup.py
+</span></code></pre></td></tr></table></div></figure>
+Output:</python-cmd></p>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>Adding distribute 0.6.28 to easy-install.pth file
+</span><span class='line'>Installing easy_install script to /usr/local/bin
+</span><span class='line'>Installing easy_install-3.2 script to /usr/local/bin
+</span></code></pre></td></tr></table></div></figure>
+<strong>Note:</strong> Make sure &lt;python-cmd&gt; is a python3.* command, in my PC, Python2.* command is python, while the Python3.* command is python3,  use &lt;python-cmd&gt; –version to check out version of &lt;python-cmd&gt;. </p>
+
+<h3 id="use-easyinstall-2x-and-3x">Use easy_install 2.x and 3.x</h3>
+<p>Now per installing 2.x packages, using:</p>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>easy_install-2.7  &lt;package-name&gt;
+</span></code></pre></td></tr></table></div></figure>
+while using</package-name></p>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>easy_install-3.2  &lt;package-name&gt;
+</span></code></pre></td></tr></table></div></figure>
+to install version 3.x packages.</package-name></p>
+
+<p><code>---EOF---</code></p>
+
+]]></content>
+  </entry>
+  
+</feed>

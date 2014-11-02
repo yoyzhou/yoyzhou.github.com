@@ -1,1 +1,2200 @@
-My Octopress Page is coming soon &hellip;
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!-->
+<html class="no-js" lang="zh-CN"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Zhou&#8217;s Blog</title>
+  <meta name="author" content="yoyzhou">
+  <!--[if lt IE 9]>
+    <script src="http://x.papaapp.com/farm1/a571d2/8dda131d/html5shiv.js"></script>
+    <![endif]-->
+  
+  <meta name="description" content="在Hadoop上运行Mahout KMeans聚类分析 | Comments 上一篇文章“Mahout与聚类分析”介绍了如何使用Mahout进行聚类分析的步骤，并且结合实例使用K-Means对微博名人共同关注数据进行了共被关注聚类分析。Mahout运行有本地运行和Hadoop运行两种模式， &hellip;">
+  
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://yoyzhou.github.io/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script type="text/javascript" src="http://t.papaapp.com/js/libs/jquery/1.7.2/jquery.js"></script>
+   <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <script src="/javascripts/modernizr-2.0.js"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+	      jax: ["input/TeX", "output/HTML-CSS"],
+		  tex2jax: {
+		  inlineMath: [ ['$', '$'], ["\\(", "\\)"] ],
+		  displayMath: [ ['$$', '$$'], ["\\[", "\\]"] ],
+		  processEscapes: true,
+		  skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+		}}
+   );
+</script>
+<script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML" type="text/javascript"></script>
+<script src="/javascripts/ender.js"></script>
+<script src="/javascripts/octopress.js" type="text/javascript"></script>
+<link href="/atom.xml" rel="alternate" title="Zhou's Blog" type="application/atom+xml">
+
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-34034666-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <header id="header" class="clearfix">    <div class="container">
+        <div class="col-group">
+            <div class="site-name ">
+                <a id="logo" href="/">
+                   Zhou&#8217;s Blog
+                </a>
+                <p class="description">There is no truth as such, there is only truth from a point of view [Nietzsche]</p>
+            </div>
+            <div>
+                <nav id="nav-menu" class="clearfix">
+                    <a class="index-nav current" href="/">Blog</a>
+<a class="archives-nav" href="/blog/archives">Archives</a>
+                </nav>
+            </div>
+        </div>
+    </div>
+</header>
+  <div id="body">
+    <div class="container">
+    	<div class="col-group">
+			  <div class="col-8" id="main">
+    <div class="res-cons">
+    
+    
+    
+      <article class="post">
+        
+  <header>
+    
+      <h2 class="post-title"><a href="/blog/2013/06/04/mahout-clustering-with-hadoop/">在Hadoop上运行Mahout KMeans聚类分析</a></h2>
+    
+    
+      <p class="post-meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-06-04T20:18:00-07:00" pubdate data-updated="true"></time>
+        
+         | <a href="/blog/2013/06/04/mahout-clustering-with-hadoop/#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="post-content"><p>上一篇文章<a href="/blog/2013/05/26/clustering-with-mahout/">“Mahout与聚类分析”</a>介绍了如何使用Mahout进行聚类分析的步骤，并且结合实例使用K-Means对微博名人共同关注数据进行了共被关注聚类分析。Mahout运行有本地运行和Hadoop运行两种模式，本地运行是指在用户本地的单机模式下运行，就像运行其他普通的程序一样，但是这样这样就不能最大限度的发挥出Mahout的优势，在本文中我们介绍如何让我们的Mahout聚类分析程序在Hahoop集群上运行（在实际操作中笔者使用的伪分布Hadoop，而不是真正的Hadoop集群）。</p>
+
+<h4 id="mahout">配置Mahout运行环境</h4>
+
+<p>Mahout运行配置可以在<code>$MAHOUT_HOME/bin/mahout</code>里面进行设置，实际上<code>$MAHOUT_HOME/bin/mahout</code>就是Mahout在命令行的启动脚本，这一点与Hadoop相似，但也又不同，Hadoop在$HADOOP_HOME\conf下面还提供了专门的hadoop-env.sh文件进行相关环境变量的配置，而Mahout在conf目录下没有提供这样的文件。</p>
+
+<h5 id="mahoutlocalhadoopconfdir">MAHOUT_LOCAL与HADOOP_CONF_DIR</h5>
+
+<p>以上的连个参数是控制Mahout是在本地运行还是在Hadoop上运行的关键。</p>
+
+<p><code>$MAHOUT_HOME/bin/mahout</code>文件指出，<strong>只要设置<code>MAHOUT_LOCAL</code>的值为一个非空（not empty string）值，则不管用户有没有设置HADOOP_CONF_DIR和HADOOP_HOME这两个参数，Mahout都以本地模式运行</strong>；换句话说，如果要想Mahout运行在Hadoop上，则MAHOUT_LOCAL必须为空。 </p>
+
+<p><code>HADOOP_CONF_DIR</code>参数指定Mahout运行Hadoop模式时使用的Hadoop配置信息，这个文件目录一般指向的是$HADOOP_HOME目录下的conf目录。</p>
+
+<p>除此之外，我们还应该设置<code>JAVA_HOME</code>或者<code>MAHOUT_JAVA_HOME</code>变量，以及必须将Hadoop的执行文件加入到PATH中。</p>
+
+<p>综上所述：</p>
+
+<p>1. 添加<code>JAVA_HOME</code>变量，可以在直接设置在<code>$MAHOUT_HOME/bin/mahout</code>中，也可以在user/bash profile里面设置(如<code>./bashrc</code>)</p>
+
+<p>2. 设置MAHOUT_HOME并添加Hadoop的执行文件到PATH中</p>
+
+<p>两个步骤在<code>~/.bashrc</code>的设置如下：</p>
+
+<pre><code>export JAVA_HOME=/usr/lib/jvm/java-7-openjdk-i386
+#export HADOOP_HOME=/home/yoyzhou/workspace/hadoop-1.1.2
+export MAHOUT_HOME=/home/yoyzhou/workspace/mahout-0.7
+export PATH=$PATH:/home/yoyzhou/workspace/hadoop-1.1.2/bin:$MAHOUT_HOME/bin
+</code></pre>
+
+<p>编辑完<code>~/.bashrc</code>,重启Terminal即可生效。</p>
+
+<p>3. 编辑<code>$MAHOUT_HOME/bin/mahout</code>，将<code>HADOOP_CONF_DIR</code>设置为<code>$HADOOP_HOME\conf</code></p>
+
+<pre><code>HADOOP_CONF_DIR=/home/yoyzhou/workspace/hadoop-1.1.2/conf
+</code></pre>
+
+<p>读者可以将相关的Hadoop和Mahout主目录修改自己系统上面的目录地址，设置好之后重启Terminal，在命令行输入mahout，如果你看到如下的信息，就说明Mahout的Hadoop运行模式已经配置好了。</p>
+
+<pre><code>MAHOUT_LOCAL is not set; adding HADOOP_CONF_DIR to classpath. 
+Running on hadoop...
+</code></pre>
+
+<p>要想使用本地模式运行，只需在<code>$MAHOUT_HOME/bin/mahout</code>添加一条设置<code>MAHOUT_LOCAL</code>为非空的语句即可。</p>
+
+<h4 id="mahout-1">Mahout命令行</h4>
+
+<p>Mahout为相关的数据挖掘算法提供了相应的命令行入口，同时提供了一些数据分析处理的用到的工具集。这些命令可以通过在终端输入<code>mahout</code>获得。以下显示了输入<code>mahout</code>的部分信息：</p>
+
+<pre><code>....
+Valid program names are:
+  arff.vector: : Generate Vectors from an ARFF file or directory
+  baumwelch: : Baum-Welch algorithm for unsupervised HMM training
+  canopy: : Canopy clustering
+  cat: : Print a file or resource as the logistic regression models would see it
+  cleansvd: : Cleanup and verification of SVD output
+  clusterdump: : Dump cluster output to text
+  ....
+  fkmeans: : Fuzzy K-means clustering
+  fpg: : Frequent Pattern Growth
+  hmmpredict: : Generate random sequence of observations by given HMM
+  itemsimilarity: : Compute the item-item-similarities for item-based collaborative filtering
+  kmeans: : K-means clustering
+....
+</code></pre>
+
+<h4 id="mahout-kmeans">Mahout kmeans</h4>
+
+<p>在上一篇<a href="/blog/2013/05/26/clustering-with-mahout/">文章</a>，我们通过调用KMeansDriver.run()方法从Mahout程序中直接启动KMeans算法，这种方式对于在本地调试程序非常有用，但是在真实项目中，无论是使用Hadoop模式运行，还是本地运行，从命令行运行Mahout的相关算法更加合适，这样的好处是我们只需要给Mahout提供符合相应算法要求的输入数据，即可以利用Mahout分布式处理的优势。比如在本例中，使用kmeans算法，只需要事先将数据处理成Mahout kmeans算法要求的输入数据，然后在命令行调用<code>mahout kmeans [options]</code>即可。</p>
+
+<p>在命令行输入不带任何参数的<code>mahout kmeans</code>，Mahout将为你列出在命令行使用kmeans算法的使用方法。</p>
+
+<pre><code>Usage:                                                                          
+ [--input &lt;input&gt; --output &lt;output&gt; --distanceMeasure &lt;distanceMeasure&gt;         
+--clusters &lt;clusters&gt; --numClusters &lt;k&gt; --convergenceDelta &lt;convergenceDelta&gt;   
+--maxIter &lt;maxIter&gt; --overwrite --clustering --method &lt;method&gt;                  
+--outlierThreshold &lt;outlierThreshold&gt; --help --tempDir &lt;tempDir&gt; --startPhase   
+&lt;startPhase&gt; --endPhase &lt;endPhase&gt;]                                             
+--clusters (-c) clusters    The input centroids, as Vectors.  Must be a         
+	                        SequenceFile of Writable, Cluster/Canopy.  If k is  
+	                        also specified, then a random set of vectors will   
+	                        be selected and written out to this path first 
+</code></pre>
+
+<p>相关的参数我们已经在上篇<a href="/blog/2013/05/26/clustering-with-mahout/">文章</a>中提到过。</p>
+
+<p>具体的步骤如下：</p>
+
+<pre><code>1. 将数据处理为Mahout向量（Vector）的形式
+2. 将Mahout向量转化为Hadoop SequenceFile
+3. 创建K个初始质心\[可选\]
+4. 将Mahout向量的SequenceFile复制到HDFS上
+5. 运行`mahout kmeans [options]`
+</code></pre>
+
+<p>下面的命令显示使用CosineDistanceMeasure对data/vectors目录下Mahout向量数据进行kmeans聚类分析，输出结果保存在output目录下。</p>
+
+<pre><code>mahout kmeans -i data/vectors -o output -c data/clusters \
+-dm org.apache.mahout.common.distance.CosineDistanceMeasure \
+-x 10 -ow -cd 0.001 -cl
+</code></pre>
+
+<p>更加详细的命令行参数可以在Mahout wiki <a href="https://cwiki.apache.org/MAHOUT/k-means-commandline.html">k-means-commandline</a>上查找到。</p>
+
+<h4 id="section">总结</h4>
+
+<p>本文首先介绍了如何配置Mahout的Hadoop的运行环境，然后介绍如何使用mahout kmeans命令行将聚类分析运行在Hadoop上。</p>
+
+</div>
+  
+  
+
+
+      </article>
+    
+    
+      <article class="post">
+        
+  <header>
+    
+      <h2 class="post-title"><a href="/blog/2013/05/26/clustering-with-mahout/">Mahout与聚类分析</a></h2>
+    
+    
+      <p class="post-meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-05-26T21:53:00-07:00" pubdate data-updated="true"></time>
+        
+         | <a href="/blog/2013/05/26/clustering-with-mahout/#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="post-content"><p>本文简要的介绍了Mahout以及聚类分析，并结合实例说明了如何使用Mahout的K-Means算法进行聚类分析。</p>
+
+<h4 id="mahout">Mahout</h4>
+
+<p>Mahout是Apache下的开源机器学习软件包，目前实现的机器学习算法主要包含有<strong>协同过滤/推荐引擎</strong>，<strong>聚类</strong>和<strong>分类</strong>三个部分。Mahout从设计开始就旨在建立可扩展的机器学习软件包，用于处理大数据机器学习的问题，当你正在研究的数据量大到不能在一台机器上运行时，就可以选择使用Mahout，让你的数据在Hadoop集群的进行分析。Mahout某些部分的实现直接创建在Hadoop之上，这就使得其具有进行大数据处理的能力，也是Mahout最大的优势所在。相比较于<a href="http://www.cs.waikato.ac.nz/ml/weka/">Weka</a>，<a href="https://rapid-i.com/content/view/181/190/">RapidMiner</a>等图形化的机器学习软件，Mahout只提供机器学习的程序包（library），不提供用户图形界面，并且Mahout并不包含所有的机器学习算法实现，这一点可以算得上是她的一个劣势，但前面提到过Mahout并不是“又一个机器学习软件”，而是要成为一个“可扩展的用于处理大数据的机器学习软件”，但是我相信会有越来越多的机器学习算法会在Mahout上面实现。</p>
+
+<h4 id="section">聚类分析</h4>
+
+<p>物以类聚，人以群分。顾名思义，聚类分析就是将不同的对象分为不同的组或簇，它与我们日常生活所理解的类的概念是相一致的。聚类分析能够帮助我们很好地了解对象之间的类与结构，聚类分析也能够帮助我们将个别对象指派到相应的类。</p>
+
+<blockquote>
+  <p>聚类分析仅根据在数据中发现的描述对象及其关系的信息，将数据对象分组。其目标是，组内的对象相互之间是相似的（相关的），而不同组之间的对象是不同的（不相关的）。组内的相似性（同质性）越大，组间差别越大，聚类就越好。<br />《数据挖掘导论》 Pang-Ning Tan等</p>
+</blockquote>
+
+<p>常见的聚类分析有K-Means聚类和层次聚类两种。此外还有基于密度的、基于图的以及基于模型的聚类分析方法。</p>
+
+<p>从上面的定义中可以看出，聚类的分析的关键之一在于相似性的度量，常用的相似性有基于距离的相似度，余玄相似度，Jaccard相似度以及Pearson相关系数等。</p>
+
+<h4 id="mahout-1">Mahout聚类分析</h4>
+
+<p>Mahout的聚类分析提供了K-Means聚类、Fuzzy K-Means聚类和基于模型的聚类等方法。下面我们以K-Means聚类来说明如何使用Mahout进行聚类分析。</p>
+
+<h5 id="section-1">1. 数据准备</h5>
+
+<p>在进行数据分析时，第一步必然是准备分析数据。根据研究或者项目的要求收集数据，并且对数据进行必要的预处理。比如我下面我们要提到的微博用户共被关注分析中，首先我们要收集微博用户的关注信息，然后从关注信息中提取出用户共被关注的数据，也就是进行数据预处理。最终我们需要的数据可能就像下面的格式这样直白明确：“用户1,用户2,共被关注次数”。如果你是要进行文档的聚类分析，那么首先需要的获得的是文档的TF-IDF向量（文档-词向量）。</p>
+
+<h5 id="mahoutvector">2. 将数据转换成Mahout中的Vector</h5>
+
+<p>Mahout要求每一个输入数据都应该是一个Vector，并且以Hadoop的SequenceFile类型存储。简单来说N维<strong>Vector</strong>就是一条N维<strong>记录</strong>，其中<strong>维</strong>就是记录的<strong>属性</strong>。比如一个TF-IDF向量就是一个<strong>文档</strong>记录，里面的属性就是<strong>词</strong>，有n个词就有n个维。有时候属性也叫<strong>特征</strong>。</p>
+
+<p>在准备好Vectors之后，需要将这些记录写入到Hadoop Sequence文件中。下面的代码片段演示和如何创建Mahout Vector和将记录写成Sequence文件。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+<span class="line-number">19</span>
+<span class="line-number">20</span>
+<span class="line-number">21</span>
+<span class="line-number">22</span>
+<span class="line-number">23</span>
+<span class="line-number">24</span>
+<span class="line-number">25</span>
+<span class="line-number">26</span>
+<span class="line-number">27</span>
+<span class="line-number">28</span>
+<span class="line-number">29</span>
+<span class="line-number">30</span>
+<span class="line-number">31</span>
+<span class="line-number">32</span>
+<span class="line-number">33</span>
+<span class="line-number">34</span>
+</pre></td><td class="code"><pre><code class="java"><span class="line"><span class="c1">//...create Vector</span>
+</span><span class="line"><span class="c1">//NamedVector is a Vector Wrapper class which owns a name for each vector, very convenient class </span>
+</span><span class="line"><span class="n">NamedVector</span> <span class="n">vec</span> <span class="o">=</span> <span class="k">new</span> <span class="nf">NamedVector</span><span class="o">(</span><span class="k">new</span> <span class="nf">RandomAccessSparseVector</span><span class="o">(</span><span class="n">cflist</span><span class="o">.</span><span class="na">size</span><span class="o">()</span> <span class="o">+</span> <span class="mi">1</span><span class="o">),</span> <span class="n">account</span><span class="o">);</span>
+</span><span class="line"><span class="n">Iterator</span><span class="o">&lt;</span><span class="n">CoFollowedNode</span><span class="o">&gt;</span> <span class="n">nodeItr</span> <span class="o">=</span> <span class="n">cflist</span><span class="o">.</span><span class="na">iterator</span><span class="o">();</span>
+</span><span class="line"><span class="k">while</span><span class="o">(</span><span class="n">nodeItr</span><span class="o">.</span><span class="na">hasNext</span><span class="o">()){</span>
+</span><span class="line">	<span class="n">CoFollowedNode</span> <span class="n">cfnode</span><span class="o">=</span> <span class="n">nodeItr</span><span class="o">.</span><span class="na">next</span><span class="o">();</span>
+</span><span class="line">	<span class="c1">//set vector&#39;s n-dimension with co-followed number</span>
+</span><span class="line">	<span class="n">vec</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="n">cfnode</span><span class="o">.</span><span class="na">getDemension</span><span class="o">(),</span> <span class="n">cfnode</span><span class="o">.</span><span class="na">getCoFollowedNum</span><span class="o">());</span>
+</span><span class="line"><span class="o">}</span>
+</span><span class="line">
+</span><span class="line">
+</span><span class="line"><span class="cm">/**</span>
+</span><span class="line"><span class="cm">  * Write Vectors to Hadoop sequence file, it&#39;s required per Mahout implementation that Vectors passed</span>
+</span><span class="line"><span class="cm">  * into Mahout clusterings must be in Hadoop sequence file. </span>
+</span><span class="line"><span class="cm">  * </span>
+</span><span class="line"><span class="cm">  **/</span>
+</span><span class="line"><span class="kd">private</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">writeVectorsToSeqFile</span><span class="o">(</span><span class="n">ArrayList</span><span class="o">&lt;</span><span class="n">NamedVector</span><span class="o">&gt;</span> <span class="n">vectors</span><span class="o">,</span> <span class="n">String</span> <span class="n">filename</span><span class="o">,</span>
+</span><span class="line">		<span class="n">FileSystem</span> <span class="n">fs</span><span class="o">,</span> <span class="n">Configuration</span> <span class="n">conf</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">IOException</span> <span class="o">{</span>
+</span><span class="line">		
+</span><span class="line">	<span class="n">Path</span> <span class="n">path</span> <span class="o">=</span> <span class="k">new</span> <span class="nf">Path</span><span class="o">(</span><span class="n">filename</span><span class="o">);</span>
+</span><span class="line">	<span class="n">SequenceFile</span><span class="o">.</span><span class="na">Writer</span> <span class="n">writer</span> <span class="o">=</span> <span class="k">new</span> <span class="n">SequenceFile</span><span class="o">.</span><span class="na">Writer</span><span class="o">(</span><span class="n">fs</span><span class="o">,</span> <span class="n">conf</span><span class="o">,</span> <span class="n">path</span><span class="o">,</span>
+</span><span class="line">				<span class="n">Text</span><span class="o">.</span><span class="na">class</span><span class="o">,</span> <span class="n">VectorWritable</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+</span><span class="line">
+</span><span class="line">		
+</span><span class="line">	<span class="n">VectorWritable</span> <span class="n">vec</span> <span class="o">=</span> <span class="k">new</span> <span class="nf">VectorWritable</span><span class="o">();</span>
+</span><span class="line">		
+</span><span class="line">	<span class="c1">//write vectors to file, the key is the account id, value is the co-followed vector of the key</span>
+</span><span class="line">	<span class="k">for</span> <span class="o">(</span><span class="n">NamedVector</span> <span class="n">entry</span> <span class="o">:</span> <span class="n">vectors</span><span class="o">)</span> <span class="o">{</span>
+</span><span class="line">		<span class="n">vec</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="n">entry</span><span class="o">);</span>
+</span><span class="line">		<span class="n">writer</span><span class="o">.</span><span class="na">append</span><span class="o">(</span><span class="k">new</span> <span class="nf">Text</span><span class="o">(</span><span class="n">entry</span><span class="o">.</span><span class="na">getName</span><span class="o">()),</span> <span class="n">vec</span><span class="o">);</span>
+</span><span class="line">	<span class="o">}</span>
+</span><span class="line">	<span class="n">writer</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
+</span><span class="line">		
+</span><span class="line"><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<h5 id="mahoutk-means">3. 使用Mahout中的K-Means进行聚类</h5>
+
+<p>在介绍如何使用Mahout的K-Means之前，先复习一下基本的K-Means算法，如下所述：</p>
+
+<pre><code>**基本的K-Means算法**
+
+1, 选择K个点作为初始质心
+
+2, repeat:
+
+3,	将每个点指派到最近的质心，形成K个簇
+
+4,	重新计算每个簇的质心
+
+5, until 质心不再发生改变
+</code></pre>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+</pre></td><td class="code"><pre><code class="java"><span class="line"><span class="c1">//write initial clusters point, in this case 5 points/vectors</span>
+</span><span class="line"><span class="n">Path</span> <span class="n">path</span> <span class="o">=</span> <span class="k">new</span> <span class="nf">Path</span><span class="o">(</span><span class="s">&quot;data/clusters/part-00000&quot;</span><span class="o">);</span>
+</span><span class="line"><span class="n">SequenceFile</span><span class="o">.</span><span class="na">Writer</span> <span class="n">writer</span> <span class="o">=</span> <span class="k">new</span> <span class="n">SequenceFile</span><span class="o">.</span><span class="na">Writer</span><span class="o">(</span><span class="n">fs</span><span class="o">,</span> <span class="n">conf</span><span class="o">,</span> <span class="n">path</span><span class="o">,</span>
+</span><span class="line">		<span class="n">Text</span><span class="o">.</span><span class="na">class</span><span class="o">,</span> <span class="n">Kluster</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+</span><span class="line">
+</span><span class="line"><span class="k">for</span> <span class="o">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">k</span><span class="o">;</span> <span class="n">i</span><span class="o">++)</span> <span class="o">{</span>
+</span><span class="line">	<span class="n">NamedVector</span> <span class="n">nVec</span> <span class="o">=</span>  <span class="n">vectors</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">i</span><span class="o">);</span>
+</span><span class="line">			
+</span><span class="line">	<span class="n">Kluster</span> <span class="n">cluster</span> <span class="o">=</span> <span class="k">new</span> <span class="nf">Kluster</span><span class="o">(</span><span class="n">nVec</span><span class="o">,</span> <span class="n">i</span><span class="o">,</span> <span class="k">new</span> <span class="nf">CosineDistanceMeasure</span><span class="o">());</span>
+</span><span class="line">	<span class="n">writer</span><span class="o">.</span><span class="na">append</span><span class="o">(</span><span class="k">new</span> <span class="nf">Text</span><span class="o">(</span><span class="n">cluster</span><span class="o">.</span><span class="na">getIdentifier</span><span class="o">()),</span> <span class="n">cluster</span><span class="o">);</span>
+</span><span class="line"><span class="o">}</span>
+</span><span class="line"><span class="n">writer</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
+</span><span class="line">		
+</span><span class="line"><span class="c1">//here runs the k-means clustering in mapreduce mode, set runSequential to false</span>
+</span><span class="line"><span class="n">KMeansDriver</span><span class="o">.</span><span class="na">run</span><span class="o">(</span><span class="n">conf</span><span class="o">,</span> <span class="k">new</span> <span class="nf">Path</span><span class="o">(</span><span class="s">&quot;data/vectors&quot;</span><span class="o">),</span> <span class="k">new</span> <span class="nf">Path</span><span class="o">(</span>
+</span><span class="line">		<span class="s">&quot;data/clusters&quot;</span><span class="o">),</span> <span class="k">new</span> <span class="nf">Path</span><span class="o">(</span><span class="s">&quot;output&quot;</span><span class="o">),</span>
+</span><span class="line">		<span class="k">new</span> <span class="nf">CosineDistanceMeasure</span><span class="o">(),</span> <span class="mf">0.001</span><span class="o">,</span> <span class="mi">10</span><span class="o">,</span> <span class="kc">true</span><span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="kc">false</span><span class="o">);</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>上面的代码显示了Mahout中运行K-Means算法的用法，首先提供K个初始质心，如果用户没有提供初始质心，Mahout将根据用户给出的K随机的选择K个点作为初始质心。</p>
+
+<p>KMeansDriver提供了运行K-Means算法的入口，其中的参数包含：</p>
+
+<pre><code>/**
+   	* Iterate over the input vectors to produce clusters and, if requested, use the results of the final iteration to
+   	* cluster the input vectors.
+   	* 
+   	* @param input
+   	*          the directory pathname for input points
+   	* @param clustersIn
+   	*          the directory pathname for initial &amp; computed clusters
+   	* @param output
+   	*          the directory pathname for output points
+   	* @param measure
+   	*          the DistanceMeasure to use
+   	* @param convergenceDelta
+   	*          the convergence delta value
+   	* @param maxIterations
+   	*          the maximum number of iterations
+   	* @param runClustering
+   	*          true if points are to be clustered after iterations are completed
+   	* @param clusterClassificationThreshold
+   	*          Is a clustering strictness / outlier removal parameter. Its value should be between 0 and 1. Vectors
+   	*          having pdf below this value will not be clustered.
+   	* @param runSequential
+   	*          if true execute sequential algorithm, else run algorithm in mapreduce mode 
+   	*/
+</code></pre>
+
+<h4 id="section-2">总结</h4>
+
+<p>本文简要的介绍了Mahout以及聚类分析，并使用实例说明了如何使用Mahout的K-Means进行聚类分析。总的来说，使用Mahout进行聚类分析需要用户将数据转换成Mahout的Vector对象，并且写成Sequence文件格式，然后选择初始的质心和适当的距离度量调用KMeansDriver进行聚类。</p>
+
+<p>当然聚类分析还有很多的内容，比如如何选择距离度量，K值如何确定以及如何度量聚类的好坏等等，本篇文章旨在介绍如何使用Mahout进行聚类分析，更多的关于聚类以及机器学习的知识请您阅读相关的专业书籍。</p>
+
+<h4 id="section-3">参考数目</h4>
+
+<p>[1] Sean Owen etc., Mahout in Action, Manning Publications, 2011</p>
+
+<p>[2] Pang-Ning Tan等, 数据挖掘导论, 人民邮电出版社, 2011 </p>
+
+<p>[3] 文中代码实例的源码地址<a href="https://github.com/yoyzhou/weibo_analysis/blob/master/src/com/yoyzhou/weibo/CoFollowedClustering.java">CoFollowedClustering.java</a></p>
+
+<p><code>---EOF---</code></p>
+
+</div>
+  
+  
+
+
+      </article>
+    
+    
+      <article class="post">
+        
+  <header>
+    
+      <h2 class="post-title"><a href="/blog/2013/05/13/hadoop-write-ur-own-rawcomparator/">使用RawComparator加速Hadoop程序</a></h2>
+    
+    
+      <p class="post-meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-05-13T23:06:00-07:00" pubdate data-updated="true"></time>
+        
+         | <a href="/blog/2013/05/13/hadoop-write-ur-own-rawcomparator/#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="post-content"><p>在前面两篇文章<a href="/blog/2013/05/09/hadoop-serialization-and-writable-object-1/">[1]</a><a href="/blog/2013/05/10/hadoop-serialization-and-writable-object-2/">[2]</a>中我们介绍了Hadoop序列化的相关知识，包括Writable接口与Writable对象以及如何编写定制的Writable类，深入的分析了Writable类序列化之后占用的字节空间以及字节序列的构成。我们指出Hadoop序列化是Hadoop的核心部分之一，了解和分析Writable类的相关知识有助于我们理解Hadoop序列化的工作方式以及选择合适的Writable类作为MapReduce的键和值，以达到高效利用磁盘空间以及<strong>快速读写对象</strong>。因为在数据密集型计算中，在网络数据的传输是影响计算效率的一个重要因素，选择合适的Writable对象不但减小了磁盘空间，而且更重要的是其减小了需要在网络中传输的数据量，从而加快了程序的速度。</p>
+
+<p>在本文中我们介绍另外一种方法加快程序的速度，这就是<strong>使用RawComparator加速Hadoop程序</strong>。我们知道作为键（Key）的Writable类必须实现WritableComparable接口，以实现对键进行排序的功能。Writable类进行比较时，Hadoop的默认方式是先将序列化后的对象字节流反序列化为对象，然后再进行比较（compareTo方法），比较过程需要一个反序列化的步骤。RawComparator的做法是<strong>不进行反序列化，而是在字节流层面进行比较</strong>，这样就省下了反序列化过程，从而加速程序的运行。Hadoop自身提供的IntWritable、LongWritabe等类已经实现了这种优化，使这些Writable类作为键进行比较时，直接使用序列化的字节数组进行比较大小，而不用进行反序列化。</p>
+
+<h4 id="rawcomparator">RawComparator的实现</h4>
+
+<p>在Hadoop中编写Writable的RawComparator一般不直接继承RawComparator类，而是继承RawComparator的子类<strong>WritableComparator</strong>，因为WritableComparator类为我们提供了一些有用的工具方法，比如从字节数组中读取int、long和vlong等值。下面是上两篇文章中我们定制的MyWritable类的RawComparator实现，定制的MyWritable由两个VLongWritable对组成，为了添加RawComparator功能，Writable类必须实现WritableComparable接口，这里不再展示实现了WritableComparable接口的MyWritableComparable类的全部内容，而只是MyWritableComparable类中Comparator的实现，完整的代码可以在<a href="https://github.com/yoyzhou/weibo_analysis">github</a>中找到。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+<span class="line-number">19</span>
+<span class="line-number">20</span>
+<span class="line-number">21</span>
+<span class="line-number">22</span>
+<span class="line-number">23</span>
+<span class="line-number">24</span>
+<span class="line-number">25</span>
+<span class="line-number">26</span>
+<span class="line-number">27</span>
+<span class="line-number">28</span>
+<span class="line-number">29</span>
+<span class="line-number">30</span>
+<span class="line-number">31</span>
+<span class="line-number">32</span>
+<span class="line-number">33</span>
+<span class="line-number">34</span>
+<span class="line-number">35</span>
+<span class="line-number">36</span>
+<span class="line-number">37</span>
+<span class="line-number">38</span>
+<span class="line-number">39</span>
+<span class="line-number">40</span>
+<span class="line-number">41</span>
+<span class="line-number">42</span>
+<span class="line-number">43</span>
+<span class="line-number">44</span>
+<span class="line-number">45</span>
+<span class="line-number">46</span>
+<span class="line-number">47</span>
+<span class="line-number">48</span>
+</pre></td><td class="code"><pre><code class="java"><span class="line"><span class="o">...</span><span class="c1">//omitted for conciseness</span>
+</span><span class="line"><span class="cm">/**</span>
+</span><span class="line"><span class="cm"> * A RawComparator that compares serialized VlongWritable Pair</span>
+</span><span class="line"><span class="cm"> * compare method decode long value from serialized byte array one by one</span>
+</span><span class="line"><span class="cm"> *</span>
+</span><span class="line"><span class="cm"> * @author yoyzhou</span>
+</span><span class="line"><span class="cm"> *</span>
+</span><span class="line"><span class="cm"> * */</span>
+</span><span class="line"><span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">Comparator</span> <span class="kd">extends</span> <span class="n">WritableComparator</span> <span class="o">{</span>
+</span><span class="line">
+</span><span class="line">	<span class="kd">public</span> <span class="nf">Comparator</span><span class="o">()</span> <span class="o">{</span>
+</span><span class="line">		<span class="kd">super</span><span class="o">(</span><span class="n">MyWritableComparable</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+</span><span class="line">	<span class="o">}</span>
+</span><span class="line">
+</span><span class="line">	<span class="kd">public</span> <span class="kt">int</span> <span class="nf">compare</span><span class="o">(</span><span class="kt">byte</span><span class="o">[]</span> <span class="n">b1</span><span class="o">,</span> <span class="kt">int</span> <span class="n">s1</span><span class="o">,</span> <span class="kt">int</span> <span class="n">l1</span><span class="o">,</span> <span class="kt">byte</span><span class="o">[]</span> <span class="n">b2</span><span class="o">,</span> <span class="kt">int</span> <span class="n">s2</span><span class="o">,</span> <span class="kt">int</span> <span class="n">l2</span><span class="o">)</span> <span class="o">{</span>
+</span><span class="line">
+</span><span class="line">		<span class="kt">int</span> <span class="n">cmp</span> <span class="o">=</span> <span class="mi">1</span><span class="o">;</span>
+</span><span class="line">		<span class="c1">//determine how many bytes the first VLong takes</span>
+</span><span class="line">		<span class="kt">int</span> <span class="n">n1</span> <span class="o">=</span> <span class="n">WritableUtils</span><span class="o">.</span><span class="na">decodeVIntSize</span><span class="o">(</span><span class="n">b1</span><span class="o">[</span><span class="n">s1</span><span class="o">]);</span>
+</span><span class="line">		<span class="kt">int</span> <span class="n">n2</span> <span class="o">=</span> <span class="n">WritableUtils</span><span class="o">.</span><span class="na">decodeVIntSize</span><span class="o">(</span><span class="n">b2</span><span class="o">[</span><span class="n">s2</span><span class="o">]);</span>
+</span><span class="line">
+</span><span class="line">		<span class="k">try</span> <span class="o">{</span>
+</span><span class="line">			<span class="c1">//read value from VLongWritable byte array</span>
+</span><span class="line">			<span class="kt">long</span> <span class="n">l11</span> <span class="o">=</span> <span class="n">readVLong</span><span class="o">(</span><span class="n">b1</span><span class="o">,</span> <span class="n">s1</span><span class="o">);</span>
+</span><span class="line">			<span class="kt">long</span> <span class="n">l21</span> <span class="o">=</span> <span class="n">readVLong</span><span class="o">(</span><span class="n">b2</span><span class="o">,</span> <span class="n">s2</span><span class="o">);</span>
+</span><span class="line">
+</span><span class="line">			<span class="n">cmp</span> <span class="o">=</span> <span class="n">l11</span> <span class="o">&gt;</span> <span class="n">l21</span> <span class="o">?</span> <span class="mi">1</span> <span class="o">:</span> <span class="o">(</span><span class="n">l11</span> <span class="o">==</span> <span class="n">l21</span> <span class="o">?</span> <span class="mi">0</span> <span class="o">:</span> <span class="o">-</span><span class="mi">1</span><span class="o">);</span>
+</span><span class="line">			<span class="k">if</span> <span class="o">(</span><span class="n">cmp</span> <span class="o">!=</span> <span class="mi">0</span><span class="o">)</span> <span class="o">{</span>
+</span><span class="line">
+</span><span class="line">				<span class="k">return</span> <span class="n">cmp</span><span class="o">;</span>
+</span><span class="line">
+</span><span class="line">			<span class="o">}</span> <span class="k">else</span> <span class="o">{</span>
+</span><span class="line">
+</span><span class="line">				<span class="kt">long</span> <span class="n">l12</span> <span class="o">=</span> <span class="n">readVLong</span><span class="o">(</span><span class="n">b1</span><span class="o">,</span> <span class="n">s1</span> <span class="o">+</span> <span class="n">n1</span><span class="o">);</span>
+</span><span class="line">				<span class="kt">long</span> <span class="n">l22</span> <span class="o">=</span> <span class="n">readVLong</span><span class="o">(</span><span class="n">b2</span><span class="o">,</span> <span class="n">s2</span> <span class="o">+</span> <span class="n">n2</span><span class="o">);</span>
+</span><span class="line">				<span class="k">return</span> <span class="n">cmp</span> <span class="o">=</span> <span class="n">l12</span> <span class="o">&gt;</span> <span class="n">l22</span> <span class="o">?</span> <span class="mi">1</span> <span class="o">:</span> <span class="o">(</span><span class="n">l12</span> <span class="o">==</span> <span class="n">l22</span> <span class="o">?</span> <span class="mi">0</span> <span class="o">:</span> <span class="o">-</span><span class="mi">1</span><span class="o">);</span>
+</span><span class="line">			<span class="o">}</span>
+</span><span class="line">		<span class="o">}</span> <span class="k">catch</span> <span class="o">(</span><span class="n">IOException</span> <span class="n">e</span><span class="o">)</span> <span class="o">{</span>
+</span><span class="line">				<span class="k">throw</span> <span class="k">new</span> <span class="nf">RuntimeException</span><span class="o">(</span><span class="n">e</span><span class="o">);</span>
+</span><span class="line">		<span class="o">}</span>
+</span><span class="line">	<span class="o">}</span>
+</span><span class="line"><span class="o">}</span>
+</span><span class="line">
+</span><span class="line"><span class="kd">static</span> <span class="o">{</span> <span class="c1">// register this comparator</span>
+</span><span class="line">	<span class="n">WritableComparator</span><span class="o">.</span><span class="na">define</span><span class="o">(</span><span class="n">MyWritableComparable</span><span class="o">.</span><span class="na">class</span><span class="o">,</span> <span class="k">new</span> <span class="nf">Comparator</span><span class="o">());</span>
+</span><span class="line"><span class="o">}</span>
+</span><span class="line">
+</span><span class="line"><span class="o">...</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>通过上面的代码我们可以看到要实现Writable的RawComparator我们只需要重载WritableComparator的<code>public int compare(byte[] b1, int s1, int l1, byte[] b2, int s2, int l2)</code>方法。在我们的例子中，通过从VLongWritable对序列化后字节数组中一个一个的读取VLongWritable的值，再进行比较。</p>
+
+<p>当然编写完compare方法之后，不要忘了为Writable类注册编写的RawComparator类。</p>
+
+<h4 id="section">总结</h4>
+
+<p>为Writable类编写RawComparator必须对Writable本身序列化之后的字节数组有清晰的了解，知道如何从字节数组中读取Writable对象的值，而这正是我们前两篇关于<strong>Hadoop序列化和Writable接口</strong>的文章所要阐述的内容。</p>
+
+<p>通过以上的三篇文章，我们了解了Hadoop Writable接口，如何编写自己的Writable类，Writable类的字节序列长度与其构成，以及如何为Writable类编写RawComparator来为Hadoop提速。</p>
+
+<h4 id="section-1">参考资料</h4>
+
+<p>Tom White, Hadoop: The Definitive Guide, 3rd Edition </p>
+
+<p><a href="/blog/2013/05/09/hadoop-serialization-and-writable-object-1/">Hadoop序列化与Writable接口(一)</a></p>
+
+<p><a href="/blog/2013/05/10/hadoop-serialization-and-writable-object-2/">Hadoop序列化与Writable接口(二)</a></p>
+
+<p><code>--EOF--</code></p>
+
+</div>
+  
+  
+
+
+      </article>
+    
+    
+      <article class="post">
+        
+  <header>
+    
+      <h2 class="post-title"><a href="/blog/2013/05/10/hadoop-serialization-and-writable-object-2/">Hadoop序列化与Writable接口(二)</a></h2>
+    
+    
+      <p class="post-meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-05-10T20:56:00-07:00" pubdate data-updated="true"></time>
+        
+         | <a href="/blog/2013/05/10/hadoop-serialization-and-writable-object-2/#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="post-content"><p>上一篇文章<a href="/blog/2013/05/09/hadoop-serialization-and-writable-object-1/">Hadoop序列化与Writable接口（一）</a>介绍了Hadoop序列化，Hadoop Writable接口以及如何定制自己的Writable类，在本文中我们继续Hadoop Writable类的介绍，这一次我们关注的是Writable实例序列化之后占用的字节长度，以及Writable实例序列化之后的字节序列的构成。</p>
+
+<h4 id="writable">为什么要考虑Writable类的字节长度</h4>
+
+<p>大数据程序还需要考虑序列化对象占用磁盘空间的大小吗？也许你会认为<strong>大数据</strong>不是就是数据量很大吗，那磁盘空间一定是足够足够的大，一个序列化对象仅仅占用几个到几十个字节的空间，相对磁盘空间来说，当然是不需要考虑太多；如果你的磁盘空间不够大，还是不要玩大数据的好。</p>
+
+<p>上面的观点没有什么问题，大数据应用自然需要足够的磁盘空间，但是能够尽量的考虑到不同Writable类占用磁盘空间的大小，高效的利用磁盘空间也未必就是没有必要的，选择适当的Writable类的另一个作用是<strong>通过减少Writable实例的字节数，可加快数据的读取和减少网络的数据传输。</strong></p>
+
+<h4 id="writable-1">Writable类占用的字节长度</h4>
+
+<p>下面的表格显示的是Hadoop对Java基本类型包装后相应的Writable类占用的字节长度：</p>
+
+<table>
+  <tbody>
+    <tr>
+      <td>Java基本类型</td>
+      <td>Writable实现</td>
+      <td>序列化后字节数 (bytes)</td>
+    </tr>
+    <tr>
+      <td>boolean</td>
+      <td>BooleanWritable</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>byte</td>
+      <td>ByteWritable</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>short</td>
+      <td>ShortWritable</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <td>int</td>
+      <td>IntWritable</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <td> </td>
+      <td>VIntWritable</td>
+      <td>1–5</td>
+    </tr>
+    <tr>
+      <td>float</td>
+      <td>FloatWritable</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <td>long</td>
+      <td>LongWritable</td>
+      <td>8</td>
+    </tr>
+    <tr>
+      <td> </td>
+      <td>VLongWritable</td>
+      <td>1–9</td>
+    </tr>
+    <tr>
+      <td>double</td>
+      <td>DoubleWritable</td>
+      <td>8</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>不同的Writable类序列化后占用的字数长度是不一样的，需要综合考虑应用中数据特征选择合适的类型。对于整数类型有两种Writable类型可以选择，一种是定长（fixed-length）Writable类型,IntWritable和LongWritable；另一种是变长（variable-length）Writable类型，VIntWritable和VLongWritable。定长类型顾名思义使用固定长度的字节数表示，比如一个IntWritable类型使用4个长度的字节表示一个int；变长类型则根据数值的大小使用相应的字节长度表示，当数值在-112～127之间时使用1个字节表示，在-112～127范围之外的数值使用头一个字节表示该数值的正负符号以及字节长度（zero-compressed encoded integer）。</p>
+
+<p>定长的Writable类型适合数值均匀分布的情形，而变长的Writable类型适合数值分布不均匀的情形，一般情况下变长的Writable类型更节省空间，因为大多数情况下数值是不均匀的，对于整数类型的Writable选择，我建议：</p>
+
+<blockquote>
+  <p>1. 除非对数据的均匀分布很有把握，否则使用变长Writable类型</p>
+</blockquote>
+
+<blockquote>
+  <p>2. 除非数据的取值区间确定在int范围之内，否则为了程序的可扩展性，请选择VLongWritable类型</p>
+</blockquote>
+
+<h4 id="writable-2">整型Writable的字节序列</h4>
+
+<p>下面将以实例的方式演示Hadoop整型Writable对象占用的字节长度以及Writable对象序列化之后字节序列的结构，特别是变长整型Writable实例，请看下面的代码和程序输出：</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+<span class="line-number">19</span>
+<span class="line-number">20</span>
+<span class="line-number">21</span>
+<span class="line-number">22</span>
+<span class="line-number">23</span>
+<span class="line-number">24</span>
+<span class="line-number">25</span>
+<span class="line-number">26</span>
+<span class="line-number">27</span>
+<span class="line-number">28</span>
+<span class="line-number">29</span>
+<span class="line-number">30</span>
+<span class="line-number">31</span>
+<span class="line-number">32</span>
+<span class="line-number">33</span>
+<span class="line-number">34</span>
+<span class="line-number">35</span>
+<span class="line-number">36</span>
+<span class="line-number">37</span>
+<span class="line-number">38</span>
+<span class="line-number">39</span>
+<span class="line-number">40</span>
+<span class="line-number">41</span>
+<span class="line-number">42</span>
+<span class="line-number">43</span>
+<span class="line-number">44</span>
+<span class="line-number">45</span>
+<span class="line-number">46</span>
+<span class="line-number">47</span>
+<span class="line-number">48</span>
+<span class="line-number">49</span>
+<span class="line-number">50</span>
+<span class="line-number">51</span>
+<span class="line-number">52</span>
+<span class="line-number">53</span>
+<span class="line-number">54</span>
+<span class="line-number">55</span>
+<span class="line-number">56</span>
+<span class="line-number">57</span>
+<span class="line-number">58</span>
+<span class="line-number">59</span>
+<span class="line-number">60</span>
+<span class="line-number">61</span>
+<span class="line-number">62</span>
+<span class="line-number">63</span>
+<span class="line-number">64</span>
+<span class="line-number">65</span>
+<span class="line-number">66</span>
+<span class="line-number">67</span>
+<span class="line-number">68</span>
+<span class="line-number">69</span>
+<span class="line-number">70</span>
+<span class="line-number">71</span>
+<span class="line-number">72</span>
+<span class="line-number">73</span>
+<span class="line-number">74</span>
+<span class="line-number">75</span>
+<span class="line-number">76</span>
+<span class="line-number">77</span>
+<span class="line-number">78</span>
+<span class="line-number">79</span>
+<span class="line-number">80</span>
+<span class="line-number">81</span>
+<span class="line-number">82</span>
+<span class="line-number">83</span>
+<span class="line-number">84</span>
+<span class="line-number">85</span>
+<span class="line-number">86</span>
+</pre></td><td class="code"><pre><code class="java"><span class="line"><span class="kn">package</span> <span class="n">com</span><span class="o">.</span><span class="na">yoyzhou</span><span class="o">.</span><span class="na">example</span><span class="o">;</span>
+</span><span class="line">
+</span><span class="line"><span class="kn">import</span> <span class="nn">java.io.*</span><span class="o">;</span>
+</span><span class="line"><span class="kn">import</span> <span class="nn">org.apache.hadoop.io.*</span><span class="o">;</span>
+</span><span class="line"><span class="kn">import</span> <span class="nn">org.apache.hadoop.util.StringUtils</span><span class="o">;</span>
+</span><span class="line">
+</span><span class="line"><span class="cm">/**</span>
+</span><span class="line"><span class="cm"> * Demos per how many bytes per each built-in Writable type takes and what does</span>
+</span><span class="line"><span class="cm"> * their bytes sequences look like</span>
+</span><span class="line"><span class="cm"> * </span>
+</span><span class="line"><span class="cm"> * @author yoyzhou</span>
+</span><span class="line"><span class="cm"> * </span>
+</span><span class="line"><span class="cm"> */</span>
+</span><span class="line">
+</span><span class="line"><span class="kd">public</span> <span class="kd">class</span> <span class="nc">WritableBytesLengthDemo</span> <span class="o">{</span>
+</span><span class="line">
+</span><span class="line">	<span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">IOException</span> <span class="o">{</span>
+</span><span class="line">
+</span><span class="line">		<span class="c1">// one billion representations by different Writable object</span>
+</span><span class="line">		<span class="n">IntWritable</span> <span class="n">int_b</span> <span class="o">=</span> <span class="k">new</span> <span class="nf">IntWritable</span><span class="o">(</span><span class="mi">1000000000</span><span class="o">);</span>
+</span><span class="line">		<span class="n">LongWritable</span> <span class="n">long_b</span> <span class="o">=</span> <span class="k">new</span> <span class="nf">LongWritable</span><span class="o">(</span><span class="mi">1000000000</span><span class="o">);</span>
+</span><span class="line">		<span class="n">VIntWritable</span> <span class="n">vint_b</span> <span class="o">=</span> <span class="k">new</span> <span class="nf">VIntWritable</span><span class="o">(</span><span class="mi">1000000000</span><span class="o">);</span>
+</span><span class="line">		<span class="n">VLongWritable</span> <span class="n">vlong_b</span> <span class="o">=</span> <span class="k">new</span> <span class="nf">VLongWritable</span><span class="o">(</span><span class="mi">1000000000</span><span class="o">);</span>
+</span><span class="line">
+</span><span class="line">		<span class="c1">// serialize writable object to byte array</span>
+</span><span class="line">		<span class="kt">byte</span><span class="o">[]</span> <span class="n">bs_int_b</span> <span class="o">=</span> <span class="n">serialize</span><span class="o">(</span><span class="n">int_b</span><span class="o">);</span>
+</span><span class="line">		<span class="kt">byte</span><span class="o">[]</span> <span class="n">bs_long_b</span> <span class="o">=</span> <span class="n">serialize</span><span class="o">(</span><span class="n">long_b</span><span class="o">);</span>
+</span><span class="line">		<span class="kt">byte</span><span class="o">[]</span> <span class="n">bs_vint_b</span> <span class="o">=</span> <span class="n">serialize</span><span class="o">(</span><span class="n">vint_b</span><span class="o">);</span>
+</span><span class="line">		<span class="kt">byte</span><span class="o">[]</span> <span class="n">bs_vlong_b</span> <span class="o">=</span> <span class="n">serialize</span><span class="o">(</span><span class="n">vlong_b</span><span class="o">);</span>
+</span><span class="line">
+</span><span class="line">		<span class="c1">// print byte array in hex string and their length</span>
+</span><span class="line">		<span class="n">String</span> <span class="n">hex</span> <span class="o">=</span> <span class="n">StringUtils</span><span class="o">.</span><span class="na">byteToHexString</span><span class="o">(</span><span class="n">bs_int_b</span><span class="o">);</span>
+</span><span class="line">		<span class="n">formatPrint</span><span class="o">(</span><span class="s">&quot;IntWritable&quot;</span><span class="o">,</span> <span class="s">&quot;1,000,000,000&quot;</span><span class="o">,</span><span class="n">hex</span><span class="o">,</span> <span class="n">bs_int_b</span><span class="o">.</span><span class="na">length</span><span class="o">);</span>
+</span><span class="line">
+</span><span class="line">		<span class="n">hex</span> <span class="o">=</span> <span class="n">StringUtils</span><span class="o">.</span><span class="na">byteToHexString</span><span class="o">(</span><span class="n">bs_long_b</span><span class="o">);</span>
+</span><span class="line">		<span class="n">formatPrint</span><span class="o">(</span><span class="s">&quot;LongWritable&quot;</span><span class="o">,</span> <span class="s">&quot;1,000,000,000&quot;</span><span class="o">,</span><span class="n">hex</span><span class="o">,</span> <span class="n">bs_long_b</span><span class="o">.</span><span class="na">length</span><span class="o">);</span>
+</span><span class="line">
+</span><span class="line">		<span class="n">hex</span> <span class="o">=</span> <span class="n">StringUtils</span><span class="o">.</span><span class="na">byteToHexString</span><span class="o">(</span><span class="n">bs_vint_b</span><span class="o">);</span>
+</span><span class="line">		<span class="n">formatPrint</span><span class="o">(</span><span class="s">&quot;VIntWritable&quot;</span><span class="o">,</span> <span class="s">&quot;1,000,000,000&quot;</span><span class="o">,</span><span class="n">hex</span><span class="o">,</span> <span class="n">bs_vint_b</span><span class="o">.</span><span class="na">length</span><span class="o">);</span>
+</span><span class="line">
+</span><span class="line">		<span class="n">hex</span> <span class="o">=</span> <span class="n">StringUtils</span><span class="o">.</span><span class="na">byteToHexString</span><span class="o">(</span><span class="n">bs_vlong_b</span><span class="o">);</span>
+</span><span class="line">		<span class="n">formatPrint</span><span class="o">(</span><span class="s">&quot;VLongWritable&quot;</span><span class="o">,</span> <span class="s">&quot;1,000,000,000&quot;</span><span class="o">,</span> <span class="n">hex</span><span class="o">,</span> <span class="n">bs_vlong_b</span><span class="o">.</span><span class="na">length</span><span class="o">);</span>
+</span><span class="line">		
+</span><span class="line">		
+</span><span class="line">	<span class="o">}</span>
+</span><span class="line">
+</span><span class="line">	<span class="kd">private</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">formatPrint</span><span class="o">(</span><span class="n">String</span> <span class="n">type</span><span class="o">,</span> <span class="n">String</span> <span class="n">param</span><span class="o">,</span> <span class="n">String</span> <span class="n">hex</span><span class="o">,</span> <span class="kt">int</span> <span class="n">length</span><span class="o">)</span> <span class="o">{</span>
+</span><span class="line">
+</span><span class="line">		<span class="n">String</span> <span class="n">format</span> <span class="o">=</span> <span class="s">&quot;%1$-50s %2$-16s with length: %3$2d%n&quot;</span><span class="o">;</span>
+</span><span class="line">		<span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">format</span><span class="o">(</span><span class="n">format</span><span class="o">,</span> <span class="s">&quot;Byte array per &quot;</span> <span class="o">+</span> <span class="n">type</span>
+</span><span class="line">				<span class="o">+</span> <span class="s">&quot;(&quot;</span><span class="o">+</span> <span class="n">param</span> <span class="o">+</span><span class="s">&quot;) is:&quot;</span><span class="o">,</span> <span class="n">hex</span><span class="o">,</span> <span class="n">length</span><span class="o">);</span>
+</span><span class="line">
+</span><span class="line">	<span class="o">}</span>
+</span><span class="line">
+</span><span class="line">	<span class="cm">/**</span>
+</span><span class="line"><span class="cm">	 * Utility method to serialize Writable object, return byte array</span>
+</span><span class="line"><span class="cm">	 * representing the Writable object</span>
+</span><span class="line"><span class="cm">	 * </span>
+</span><span class="line"><span class="cm">	 * */</span>
+</span><span class="line">	<span class="kd">public</span> <span class="kd">static</span> <span class="kt">byte</span><span class="o">[]</span> <span class="nf">serialize</span><span class="o">(</span><span class="n">Writable</span> <span class="n">writable</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">IOException</span> <span class="o">{</span>
+</span><span class="line">
+</span><span class="line">		<span class="n">ByteArrayOutputStream</span> <span class="n">out</span> <span class="o">=</span> <span class="k">new</span> <span class="nf">ByteArrayOutputStream</span><span class="o">();</span>
+</span><span class="line">		<span class="n">DataOutputStream</span> <span class="n">dataOut</span> <span class="o">=</span> <span class="k">new</span> <span class="nf">DataOutputStream</span><span class="o">(</span><span class="n">out</span><span class="o">);</span>
+</span><span class="line">		<span class="n">writable</span><span class="o">.</span><span class="na">write</span><span class="o">(</span><span class="n">dataOut</span><span class="o">);</span>
+</span><span class="line">		<span class="n">dataOut</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
+</span><span class="line">
+</span><span class="line">		<span class="k">return</span> <span class="n">out</span><span class="o">.</span><span class="na">toByteArray</span><span class="o">();</span>
+</span><span class="line">
+</span><span class="line">	<span class="o">}</span>
+</span><span class="line">
+</span><span class="line">	<span class="cm">/**</span>
+</span><span class="line"><span class="cm">	 * Utility method to deserialize input byte array, return Writable object</span>
+</span><span class="line"><span class="cm">	 * </span>
+</span><span class="line"><span class="cm">	 * */</span>
+</span><span class="line">	<span class="kd">public</span> <span class="kd">static</span> <span class="n">Writable</span> <span class="nf">deserialize</span><span class="o">(</span><span class="n">Writable</span> <span class="n">writable</span><span class="o">,</span> <span class="kt">byte</span><span class="o">[]</span> <span class="n">bytes</span><span class="o">)</span>
+</span><span class="line">			<span class="kd">throws</span> <span class="n">IOException</span> <span class="o">{</span>
+</span><span class="line">
+</span><span class="line">		<span class="n">ByteArrayInputStream</span> <span class="n">in</span> <span class="o">=</span> <span class="k">new</span> <span class="nf">ByteArrayInputStream</span><span class="o">(</span><span class="n">bytes</span><span class="o">);</span>
+</span><span class="line">		<span class="n">DataInputStream</span> <span class="n">dataIn</span> <span class="o">=</span> <span class="k">new</span> <span class="nf">DataInputStream</span><span class="o">(</span><span class="n">in</span><span class="o">);</span>
+</span><span class="line">		<span class="n">writable</span><span class="o">.</span><span class="na">readFields</span><span class="o">(</span><span class="n">dataIn</span><span class="o">);</span>
+</span><span class="line">
+</span><span class="line">		<span class="n">dataIn</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
+</span><span class="line">		<span class="k">return</span> <span class="n">writable</span><span class="o">;</span>
+</span><span class="line">
+</span><span class="line">	<span class="o">}</span>
+</span><span class="line"><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>程序输出：</p>
+
+<pre><code>Byte array per IntWritable(1,000,000,000) is:  \     
+3b9aca00         with length:  4
+
+Byte array per LongWritable(1,000,000,000) is: \     
+000000003b9aca00 with length:  8
+
+Byte array per VIntWritable(1,000,000,000) is: \     
+8c3b9aca00       with length:  5
+
+Byte array per VLongWritable(1,000,000,000) is:\    
+8c3b9aca00       with length:  5
+</code></pre>
+
+<p>从上面的输出我们可以看出：</p>
+
+<p>+ 对1,000,000,000的表示不同的Writable占用了不同字节长度</p>
+
+<p>+ 变长Writable类型并不总是比定长类型更加节省空间，当IntWritable占用4个字节、LongWritable占用8个字节时，相应的变长Writable需要一个额外的字节来存放正负信息和字节长度。所以回到前面的整数类型选择的问题上，<strong>选择出最合适的整数Writable类型，我们应该对数值的总体分布有一定的认识</strong>。</p>
+
+<h4 id="text">Text的字节序列</h4>
+
+<p>可以简单的认为Text类是java.lang.String的Writable类型，但是要注意的是Text类对于Unicode字符采用的是UTF-8编码，而不是使用Java Character类的UTF-16编码。</p>
+
+<p>Java Character类采用遵循Unicode Standard version 4的UTF-16编码<a href="http://docs.oracle.com/javase/6/docs/api/java/lang/Character.html">[1]</a>，每个字符采用定长的16位(两个字节)进行编码，对于代码点高于Basic Multilingual Plane(BMP，代码点U+0000～U+FFFF)的增补字符，采用两个代理字符进行表示。</p>
+
+<p>Text类采用的UTF-8编码，使用变长的1～4个字节对字符进行编码。对于ASCII字符只使用1个字节，而对于High ASCII和多字节字符使用2～4个字节表示，我想Hadoop在设计时选择使用UTF-8而不是String的UTF-16就是基于上面的原因，为了节省字节长度/空间的考虑。</p>
+
+<blockquote>
+  <p>由于Text采用的是UTF-8编码，所以Text类没有提供String那样多的操作，并且在操作Text对象时，比如Indexing和Iteration，一定要注意这个区别，不过我们建议在进行Text操作时，如果可能可以将Text对象先转换成String，再进行操作。</p>
+</blockquote>
+
+<p>Text类的字节序列表示为一个VIntWritable + UTF-8字节流，VIntWritable为整个Text的字符长度，UTF-8字节数组为真正的Text字节流。具体请看下面的代码片段：</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+</pre></td><td class="code"><pre><code class="java"><span class="line"><span class="o">...</span><span class="c1">//omitted per conciseness</span>
+</span><span class="line"><span class="n">Text</span> <span class="n">myText</span> <span class="o">=</span> <span class="k">new</span> <span class="nf">Text</span><span class="o">(</span><span class="s">&quot;my text&quot;</span><span class="o">);</span>
+</span><span class="line"><span class="kt">byte</span><span class="o">[]</span> <span class="n">text_bs</span> <span class="o">=</span> <span class="n">serialize</span><span class="o">(</span><span class="n">myText</span><span class="o">);</span>
+</span><span class="line"><span class="n">hex</span> <span class="o">=</span> <span class="n">StringUtils</span><span class="o">.</span><span class="na">byteToHexString</span><span class="o">(</span><span class="n">text_bs</span><span class="o">);</span>
+</span><span class="line"><span class="n">formatPrint</span><span class="o">(</span><span class="s">&quot;Text&quot;</span><span class="o">,</span> <span class="s">&quot;\&quot;my text\&quot;&quot;</span><span class="o">,</span> <span class="n">hex</span><span class="o">,</span> <span class="n">text_bs</span><span class="o">.</span><span class="na">length</span><span class="o">);</span>
+</span><span class="line">		
+</span><span class="line"><span class="n">Text</span> <span class="n">myText2</span> <span class="o">=</span> <span class="k">new</span> <span class="nf">Text</span><span class="o">(</span><span class="s">&quot;我的文本&quot;</span><span class="o">);</span>
+</span><span class="line"><span class="kt">byte</span><span class="o">[]</span> <span class="n">text2_bs</span> <span class="o">=</span> <span class="n">serialize</span><span class="o">(</span><span class="n">myText2</span><span class="o">);</span>
+</span><span class="line"><span class="n">hex</span> <span class="o">=</span> <span class="n">StringUtils</span><span class="o">.</span><span class="na">byteToHexString</span><span class="o">(</span><span class="n">text2_bs</span><span class="o">);</span>
+</span><span class="line"><span class="n">formatPrint</span><span class="o">(</span><span class="s">&quot;Text&quot;</span><span class="o">,</span> <span class="s">&quot;\&quot;我的文本\&quot;&quot;</span><span class="o">,</span> <span class="n">hex</span><span class="o">,</span> <span class="n">text2_bs</span><span class="o">.</span><span class="na">length</span><span class="o">);</span>
+</span><span class="line"><span class="o">...</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>程序输出：</p>
+
+<pre><code>Byte array per Text("my text") is: \
+ 	076d792074657874 with length:  8
+
+Byte array per Text("我的文本") is: \
+0ce68891e79a84e69687e69cac with length: 13
+</code></pre>
+
+<p>在上面的输出中，首个字节代表的该段Text/文本的长度，在UTF-8编码下“my text”占用的字节长度为7个字节（07），而中文“我的文本”的字节长度是12个字节（0c）。</p>
+
+<h4 id="writable-3">定制Writable类的字节序列</h4>
+
+<p>本节中我们将使用上篇文章中的MyWritable类进行说明，回顾一下，MyWritable是一个由两个VLongWritable类构成的定制化Writable类型。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+</pre></td><td class="code"><pre><code class="java"><span class="line"><span class="o">...</span><span class="c1">//omitted per conciseness</span>
+</span><span class="line"><span class="n">MyWritable</span> <span class="n">customized</span> <span class="o">=</span> <span class="k">new</span> <span class="nf">MyWritable</span><span class="o">(</span><span class="k">new</span> <span class="nf">VLongWritable</span><span class="o">(</span><span class="mi">1000</span><span class="o">),</span>
+</span><span class="line"> 						<span class="k">new</span> <span class="nf">VLongWritable</span><span class="o">(</span><span class="mi">1000000000</span><span class="o">));</span>
+</span><span class="line"><span class="kt">byte</span><span class="o">[]</span> <span class="n">customized_bs</span> <span class="o">=</span> <span class="n">serialize</span><span class="o">(</span><span class="n">customized</span><span class="o">);</span>
+</span><span class="line"><span class="n">hex</span> <span class="o">=</span> <span class="n">StringUtils</span><span class="o">.</span><span class="na">byteToHexString</span><span class="o">(</span><span class="n">customized_bs</span><span class="o">);</span>
+</span><span class="line"><span class="n">formatPrint</span><span class="o">(</span><span class="s">&quot;MyWritable&quot;</span><span class="o">,</span> <span class="s">&quot;1000, 1000000000&quot;</span><span class="o">,</span> <span class="n">hex</span><span class="o">,</span> <span class="n">customized_bs</span><span class="o">.</span><span class="na">length</span><span class="o">);</span>
+</span><span class="line"><span class="o">...</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>程序输出：</p>
+
+<pre><code>Byte array per MyWritable(1000, 1000000000) is: \
+8e03e88c3b9aca00 with length:  8
+</code></pre>
+
+<p>从输出我们可以很清楚的看到，定制的Writable类的字节序列实际上就是基本Writable类型的组合，输出“8e03e88c3b9aca00”的前三个字节是1000的VLongWritable的字节序列，“8c3b9aca00”是1000000000VLongWritable的字节序列，这一点可以从我们编写的MyWritable类的write方法中找到答案：</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+</pre></td><td class="code"><pre><code class="java"><span class="line"><span class="o">...</span><span class="c1">//omitted per conciseness</span>
+</span><span class="line"><span class="nd">@Override</span>
+</span><span class="line"><span class="kd">public</span> <span class="kt">void</span> <span class="nf">write</span><span class="o">(</span><span class="n">DataOutput</span> <span class="n">out</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">IOException</span> <span class="o">{</span>
+</span><span class="line">	<span class="n">field1</span><span class="o">.</span><span class="na">write</span><span class="o">(</span><span class="n">out</span><span class="o">);</span>
+</span><span class="line">	<span class="n">field2</span><span class="o">.</span><span class="na">write</span><span class="o">(</span><span class="n">out</span><span class="o">);</span>
+</span><span class="line"><span class="o">}</span>
+</span><span class="line"><span class="o">...</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<h4 id="section">总结</h4>
+
+<p>本文通过实例介绍了Hadoop Writable类序列化时占用的字节长度，并分析了Writable类序列化后的字节序列的结构。需要注意的是Text类为了节省空间的目的采用了UTF-8的编码，而不是Java Character的UTF-16编码，自定义的Writable的字节序列与该Writable类的write()方法有关。</p>
+
+<p>最后指出，Writable是Hadoop序列化的核心，理解Hadoop Writable的字节长度和字节序列对于选择合适的Writable对象以及在字节层面操作Writable对象至关重要。</p>
+
+<h4 id="section-1">参考资料</h4>
+
+<p>Tom White, Hadoop: The Definitive Guide, 3rd Edition </p>
+
+<p><a href="/blog/2013/05/09/hadoop-serialization-and-writable-object-1/">Hadoop序列化与Writable接口(一)</a></p>
+
+<p><code>---EOF---</code></p>
+
+<!-- reference-like links -->
+
+</div>
+  
+  
+
+
+      </article>
+    
+    
+      <article class="post">
+        
+  <header>
+    
+      <h2 class="post-title"><a href="/blog/2013/05/09/hadoop-serialization-and-writable-object-1/">Hadoop序列化与Writable接口(一)</a></h2>
+    
+    
+      <p class="post-meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-05-09T20:49:00-07:00" pubdate data-updated="true"></time>
+        
+         | <a href="/blog/2013/05/09/hadoop-serialization-and-writable-object-1/#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="post-content"><h4 id="section">序列化</h4>
+
+<p><strong>序列化</strong>（serialization）是指将结构化的对象转化为字节流，以便在网络上传输或者写入到硬盘进行永久存储；相对的<strong>反序列化</strong>（deserialization）是指将字节流转回到结构化对象的过程。</p>
+
+<p>在分布式系统中进程将对象序列化为字节流，通过网络传输到另一进程，另一进程接收到字节流，通过反序列化转回到结构化对象，以达到进程间通信。在Hadoop中，Mapper，Combiner，Reducer等阶段之间的通信都需要使用序列化与反序列化技术。举例来说，Mapper产生的中间结果（<code>&lt;key: value1, value2...&gt;</code>）需要写入到本地硬盘，这是序列化过程（将结构化对象转化为字节流，并写入硬盘），而Reducer阶段读取Mapper的中间结果的过程则是一个反序列化过程（读取硬盘上存储的字节流文件，并转回为结构化对象），需要注意的是，能够在网络上传输的只能是字节流，Mapper的中间结果在不同主机间洗牌时，对象将经历序列化和反序列化两个过程。</p>
+
+<p>序列化是Hadoop核心的一部分，在Hadoop中，位于org.apache.hadoop.io包中的Writable接口是Hadoop序列化格式的实现。</p>
+
+<h4 id="writable">Writable接口</h4>
+
+<p>Hadoop Writable接口是基于DataInput和DataOutput实现的序列化协议，紧凑（高效使用存储空间），快速（读写数据、序列化与反序列化的开销小）。Hadoop中的键（key）和值（value）必须是实现了Writable接口的对象（键还必须实现WritableComparable，以便进行排序）。</p>
+
+<p>以下是Hadoop（使用的是Hadoop 1.1.2）中Writable接口的声明：</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+<span class="line-number">19</span>
+<span class="line-number">20</span>
+<span class="line-number">21</span>
+<span class="line-number">22</span>
+<span class="line-number">23</span>
+<span class="line-number">24</span>
+<span class="line-number">25</span>
+<span class="line-number">26</span>
+</pre></td><td class="code"><pre><code class="java"><span class="line"><span class="kn">package</span> <span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">hadoop</span><span class="o">.</span><span class="na">io</span><span class="o">;</span>
+</span><span class="line">
+</span><span class="line"><span class="kn">import</span> <span class="nn">java.io.DataOutput</span><span class="o">;</span>
+</span><span class="line"><span class="kn">import</span> <span class="nn">java.io.DataInput</span><span class="o">;</span>
+</span><span class="line"><span class="kn">import</span> <span class="nn">java.io.IOException</span><span class="o">;</span>
+</span><span class="line">
+</span><span class="line"><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">Writable</span> <span class="o">{</span>
+</span><span class="line">  <span class="cm">/** </span>
+</span><span class="line"><span class="cm">   * Serialize the fields of this object to &lt;code&gt;out&lt;/code&gt;.</span>
+</span><span class="line"><span class="cm">   * </span>
+</span><span class="line"><span class="cm">   * @param out &lt;code&gt;DataOuput&lt;/code&gt; to serialize this object into.</span>
+</span><span class="line"><span class="cm">   * @throws IOException</span>
+</span><span class="line"><span class="cm">   */</span>
+</span><span class="line">  <span class="kt">void</span> <span class="nf">write</span><span class="o">(</span><span class="n">DataOutput</span> <span class="n">out</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">IOException</span><span class="o">;</span>
+</span><span class="line">
+</span><span class="line">  <span class="cm">/** </span>
+</span><span class="line"><span class="cm">   * Deserialize the fields of this object from &lt;code&gt;in&lt;/code&gt;.  </span>
+</span><span class="line"><span class="cm">   * </span>
+</span><span class="line"><span class="cm">   * &lt;p&gt;For efficiency, implementations should attempt to re-use storage in the </span>
+</span><span class="line"><span class="cm">   * existing object where possible.&lt;/p&gt;</span>
+</span><span class="line"><span class="cm">   * </span>
+</span><span class="line"><span class="cm">   * @param in &lt;code&gt;DataInput&lt;/code&gt; to deseriablize this object from.</span>
+</span><span class="line"><span class="cm">   * @throws IOException</span>
+</span><span class="line"><span class="cm">   */</span>
+</span><span class="line">  <span class="kt">void</span> <span class="nf">readFields</span><span class="o">(</span><span class="n">DataInput</span> <span class="n">in</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">IOException</span><span class="o">;</span>
+</span><span class="line"><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<h4 id="writable-1">Writable类</h4>
+
+<p>Hadoop自身提供了多种具体的Writable类，包含了常见的Java基本类型（boolean、byte、short、int、float、long和double等）和集合类型（BytesWritable、ArrayWritable和MapWritable等）。这些类型都位于org.apache.hadoop.io包中。</p>
+
+<p><img src="/images/hadoop-writable-class.png" alt="writable-classes" /></p>
+
+<p>(图片来源：safaribooksonline.com)</p>
+
+<h4 id="writable-2">定制Writable类</h4>
+
+<p>虽然Hadoop内建了多种Writable类提供用户选择，Hadoop对Java基本类型的包装Writable类实现的RawComparable接口，使得这些对象不需要反序列化过程，便可以在字节流层面进行排序，从而大大缩短了比较的时间开销，但是当我们需要更加复杂的对象时，Hadoop的内建Writable类就不能满足我们的需求了(需要注意的是Hadoop提供的Writable集合类型并没有实现RawComparable接口，因此也不满足我们的需要)，这时我们就需要定制自己的Writable类，特别将其作为键（key）的时候更应该如此，以求达到更高效的存储和快速的比较。</p>
+
+<p>下面的实例展示了如何定制一个Writable类，一个定制的Writable类首先必须实现Writable或者WritableComparable接口，然后为定制的Writable类编写write(DataOutput out)和readFields(DataInput in)方法，来控制定制的Writable类如何转化为字节流（write方法）和如何从字节流转回为Writable对象。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+<span class="line-number">19</span>
+<span class="line-number">20</span>
+<span class="line-number">21</span>
+<span class="line-number">22</span>
+<span class="line-number">23</span>
+<span class="line-number">24</span>
+<span class="line-number">25</span>
+<span class="line-number">26</span>
+<span class="line-number">27</span>
+<span class="line-number">28</span>
+<span class="line-number">29</span>
+<span class="line-number">30</span>
+<span class="line-number">31</span>
+<span class="line-number">32</span>
+<span class="line-number">33</span>
+<span class="line-number">34</span>
+<span class="line-number">35</span>
+<span class="line-number">36</span>
+<span class="line-number">37</span>
+<span class="line-number">38</span>
+<span class="line-number">39</span>
+<span class="line-number">40</span>
+<span class="line-number">41</span>
+<span class="line-number">42</span>
+<span class="line-number">43</span>
+<span class="line-number">44</span>
+<span class="line-number">45</span>
+<span class="line-number">46</span>
+<span class="line-number">47</span>
+<span class="line-number">48</span>
+<span class="line-number">49</span>
+<span class="line-number">50</span>
+<span class="line-number">51</span>
+<span class="line-number">52</span>
+<span class="line-number">53</span>
+<span class="line-number">54</span>
+<span class="line-number">55</span>
+<span class="line-number">56</span>
+<span class="line-number">57</span>
+<span class="line-number">58</span>
+<span class="line-number">59</span>
+<span class="line-number">60</span>
+<span class="line-number">61</span>
+<span class="line-number">62</span>
+<span class="line-number">63</span>
+<span class="line-number">64</span>
+<span class="line-number">65</span>
+<span class="line-number">66</span>
+<span class="line-number">67</span>
+<span class="line-number">68</span>
+<span class="line-number">69</span>
+<span class="line-number">70</span>
+<span class="line-number">71</span>
+<span class="line-number">72</span>
+<span class="line-number">73</span>
+<span class="line-number">74</span>
+<span class="line-number">75</span>
+<span class="line-number">76</span>
+<span class="line-number">77</span>
+<span class="line-number">78</span>
+<span class="line-number">79</span>
+</pre></td><td class="code"><pre><code class="java"><span class="line"><span class="kn">package</span> <span class="n">com</span><span class="o">.</span><span class="na">yoyzhou</span><span class="o">.</span><span class="na">weibo</span><span class="o">;</span>
+</span><span class="line">
+</span><span class="line"><span class="kn">import</span> <span class="nn">java.io.DataInput</span><span class="o">;</span>
+</span><span class="line"><span class="kn">import</span> <span class="nn">java.io.DataOutput</span><span class="o">;</span>
+</span><span class="line"><span class="kn">import</span> <span class="nn">java.io.IOException</span><span class="o">;</span>
+</span><span class="line"><span class="kn">import</span> <span class="nn">org.apache.hadoop.io.VLongWritable</span><span class="o">;</span>
+</span><span class="line"><span class="kn">import</span> <span class="nn">org.apache.hadoop.io.Writable</span><span class="o">;</span>
+</span><span class="line">
+</span><span class="line"><span class="cm">/**</span>
+</span><span class="line"><span class="cm"> *This MyWritable class demonstrates how to write a custom Writable class </span>
+</span><span class="line"><span class="cm"> *</span>
+</span><span class="line"><span class="cm"> **/</span>
+</span><span class="line"><span class="kd">public</span> <span class="kd">class</span> <span class="nc">MyWritable</span> <span class="kd">implements</span> <span class="n">Writable</span><span class="o">{</span>
+</span><span class="line">		
+</span><span class="line">		
+</span><span class="line">	<span class="kd">private</span> <span class="n">VLongWritable</span> <span class="n">field1</span><span class="o">;</span>
+</span><span class="line">	<span class="kd">private</span> <span class="n">VLongWritable</span> <span class="n">field2</span><span class="o">;</span>
+</span><span class="line">		
+</span><span class="line">	<span class="kd">public</span> <span class="nf">MyWritable</span><span class="o">(){</span>
+</span><span class="line">		<span class="k">this</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="k">new</span> <span class="nf">VLongWritable</span><span class="o">(),</span> <span class="k">new</span> <span class="nf">VLongWritable</span><span class="o">());</span>
+</span><span class="line">	<span class="o">}</span>
+</span><span class="line">		
+</span><span class="line">		
+</span><span class="line">	<span class="kd">public</span> <span class="nf">MyWritable</span><span class="o">(</span><span class="n">VLongWritable</span> <span class="n">fld1</span><span class="o">,</span> <span class="n">VLongWritable</span> <span class="n">fld2</span><span class="o">){</span>
+</span><span class="line">			
+</span><span class="line">		<span class="k">this</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="n">fld1</span><span class="o">,</span> <span class="n">fld2</span><span class="o">);</span>
+</span><span class="line">			
+</span><span class="line">	<span class="o">}</span>
+</span><span class="line">		
+</span><span class="line">	<span class="kd">public</span> <span class="kt">void</span> <span class="nf">set</span><span class="o">(</span><span class="n">VLongWritable</span> <span class="n">fld1</span><span class="o">,</span> <span class="n">VLongWritable</span> <span class="n">fld2</span><span class="o">){</span>
+</span><span class="line">		<span class="c1">//make sure the smaller field is always put as field1</span>
+</span><span class="line">		<span class="k">if</span><span class="o">(</span><span class="n">fld1</span><span class="o">.</span><span class="na">get</span><span class="o">()</span> <span class="o">&lt;=</span> <span class="n">fld2</span><span class="o">.</span><span class="na">get</span><span class="o">()){</span>
+</span><span class="line">			<span class="k">this</span><span class="o">.</span><span class="na">field1</span> <span class="o">=</span> <span class="n">fld1</span><span class="o">;</span>
+</span><span class="line">			<span class="k">this</span><span class="o">.</span><span class="na">field2</span> <span class="o">=</span> <span class="n">fld2</span><span class="o">;</span>
+</span><span class="line">		<span class="o">}</span><span class="k">else</span><span class="o">{</span>
+</span><span class="line">				
+</span><span class="line">			<span class="k">this</span><span class="o">.</span><span class="na">field1</span> <span class="o">=</span> <span class="n">fld2</span><span class="o">;</span>
+</span><span class="line">			<span class="k">this</span><span class="o">.</span><span class="na">field2</span> <span class="o">=</span> <span class="n">fld1</span><span class="o">;</span>
+</span><span class="line">		<span class="o">}</span>
+</span><span class="line">		<span class="o">}</span>
+</span><span class="line">				
+</span><span class="line">	<span class="c1">//How to write and read MyWritable fields from DataOutput and DataInput stream</span>
+</span><span class="line">	<span class="nd">@Override</span>
+</span><span class="line">	<span class="kd">public</span> <span class="kt">void</span> <span class="nf">write</span><span class="o">(</span><span class="n">DataOutput</span> <span class="n">out</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">IOException</span> <span class="o">{</span>
+</span><span class="line">			
+</span><span class="line">		<span class="n">field1</span><span class="o">.</span><span class="na">write</span><span class="o">(</span><span class="n">out</span><span class="o">);</span>
+</span><span class="line">		<span class="n">field2</span><span class="o">.</span><span class="na">write</span><span class="o">(</span><span class="n">out</span><span class="o">);</span>
+</span><span class="line">	<span class="o">}</span>
+</span><span class="line">
+</span><span class="line">	<span class="nd">@Override</span>
+</span><span class="line">	<span class="kd">public</span> <span class="kt">void</span> <span class="nf">readFields</span><span class="o">(</span><span class="n">DataInput</span> <span class="n">in</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">IOException</span> <span class="o">{</span>
+</span><span class="line">			
+</span><span class="line">		<span class="n">field1</span><span class="o">.</span><span class="na">readFields</span><span class="o">(</span><span class="n">in</span><span class="o">);</span>
+</span><span class="line">		<span class="n">field2</span><span class="o">.</span><span class="na">readFields</span><span class="o">(</span><span class="n">in</span><span class="o">);</span>
+</span><span class="line">	<span class="o">}</span>
+</span><span class="line">
+</span><span class="line">	<span class="cm">/** Returns true if &lt;code&gt;o&lt;/code&gt; is a MyWritable with the same values. */</span>
+</span><span class="line">	<span class="nd">@Override</span>
+</span><span class="line">	<span class="kd">public</span> <span class="kt">boolean</span> <span class="nf">equals</span><span class="o">(</span><span class="n">Object</span> <span class="n">o</span><span class="o">)</span> <span class="o">{</span>
+</span><span class="line">		 <span class="k">if</span> <span class="o">(!(</span><span class="n">o</span> <span class="k">instanceof</span> <span class="n">MyWritable</span><span class="o">))</span>
+</span><span class="line">		    <span class="k">return</span> <span class="kc">false</span><span class="o">;</span>
+</span><span class="line">		
+</span><span class="line">		    <span class="n">MyWritable</span> <span class="n">other</span> <span class="o">=</span> <span class="o">(</span><span class="n">MyWritable</span><span class="o">)</span><span class="n">o</span><span class="o">;</span>
+</span><span class="line">		    <span class="k">return</span> <span class="n">field1</span><span class="o">.</span><span class="na">equals</span><span class="o">(</span><span class="n">other</span><span class="o">.</span><span class="na">field1</span><span class="o">)</span> <span class="o">&amp;&amp;</span> <span class="n">field2</span><span class="o">.</span><span class="na">equals</span><span class="o">(</span><span class="n">other</span><span class="o">.</span><span class="na">field2</span><span class="o">);</span>
+</span><span class="line">		
+</span><span class="line">	<span class="o">}</span>
+</span><span class="line">		
+</span><span class="line">	<span class="nd">@Override</span>
+</span><span class="line">	<span class="kd">public</span> <span class="kt">int</span> <span class="nf">hashCode</span><span class="o">(){</span>
+</span><span class="line">			
+</span><span class="line">		<span class="k">return</span> <span class="n">field1</span><span class="o">.</span><span class="na">hashCode</span><span class="o">()</span> <span class="o">*</span> <span class="mi">163</span> <span class="o">+</span> <span class="n">field2</span><span class="o">.</span><span class="na">hashCode</span><span class="o">();</span>
+</span><span class="line">	<span class="o">}</span>
+</span><span class="line">		
+</span><span class="line">	<span class="nd">@Override</span>
+</span><span class="line">	<span class="kd">public</span> <span class="n">String</span> <span class="nf">toString</span><span class="o">()</span> <span class="o">{</span>
+</span><span class="line">		<span class="k">return</span> <span class="n">field1</span><span class="o">.</span><span class="na">toString</span><span class="o">()</span> <span class="o">+</span> <span class="s">&quot;\t&quot;</span> <span class="o">+</span> <span class="n">field2</span><span class="o">.</span><span class="na">toString</span><span class="o">();</span>
+</span><span class="line">	<span class="o">}</span>
+</span><span class="line">		
+</span><span class="line"><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>未完待续，下一篇中将介绍Writable对象序列化为字节流时占用的字节长度以及其字节序列的构成。</p>
+
+<h4 id="section-1">参考资料</h4>
+
+<p>Tom White, Hadoop: The Definitive Guide, 3rd Edition </p>
+
+<p><code>---To Be Continued---</code></p>
+
+</div>
+  
+  
+
+
+      </article>
+    
+    
+      <article class="post">
+        
+  <header>
+    
+      <h2 class="post-title"><a href="/blog/2013/04/29/viz-following-networks-of-weibo-celebrities/">微博名人关注网络的社会网络分析</a></h2>
+    
+    
+      <p class="post-meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-04-29T22:41:00-07:00" pubdate data-updated="true"></time>
+        
+         | <a href="/blog/2013/04/29/viz-following-networks-of-weibo-celebrities/#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="post-content"><p>社交网络分析起源于社会学家使用数学与图论的方法研究社会群组中人与人之间的交互关系，如中心性分析、凝聚子群分析、社会结构分析等，最著名的莫过于美国社会心理学家Stanley Milgram的”六度分离理论”。传统的社会网络分析重点研究的是社会网络分析的概念以及通过社会网络分析研究社会结构对人、组织的影响，但是由于天然的地域限制，网络的大小受到一定的限制。</p>
+
+<p>随着互联网的出现，特别是社交网站的迅速崛起，国外的Facebook、Twitter、Linked，国内的人人、微博等，互联网赋予了社交网络分析前所未有的机遇和新的挑战。首先，互联网打破了地域的限制，无论来自任何地方都可以通过互联网发生联系，目前Facebook有超过10亿的用户，他们来自全球，相互成为好友；其次，获得研究数据变得非常容易，社交网站拥有大量的用户数据，这些数据对社会网络分析来说就是宝贵的财富，以前从未有过，这也是目前社会网络分析在互联网爆发的主要原因；再次，相比于单一的人与人之间的交互关系，社交网站有着丰富的多媒体信息，除了用户关系，还有文本、图片、视频等内容。</p>
+
+<p>但是数据不是信息，面对社交网站上的海量数据，需要有新的方法处理大数据，并从海量数据中挖掘出有价值的信息；同时应用社交网站的用户信息还面临这隐私保护的问题。</p>
+
+<p>本文从社会网络分析的角度分析新浪微博名人帐号的关注网络，通过中介中心性分析关注网络中的控制网络信息流动的中心人物，并且使用<a href="http://en.wikipedia.org/wiki/Modularity_(networks)">Modularity</a>（模块、群组）算法将关注网络划分为不同群组，最后我们使用Gephi可视化微博名人的关注网络。</p>
+
+<h3 id="section">相关理论简介</h3>
+
+<h4 id="section-1">中介中心性</h4>
+
+<p>中介中心性（Betweenness Centrality）是处于网络中的点的中心性/重要程度的一种度量方式，网络中点的中介中心性直观的定义为“该点处于其他点最短路径上的次数”，处于这样位置上的点对路径上的信息传输具有一定的控制（阻止、掩饰、歪曲）能力。因此在同一个网络中，哪一个点的中介中心性越高，该点在网络中对信息的控制能力就越强，相反，中介中心性低，对信息的控制也就低。</p>
+
+<p>如果希望了解中介中心性的详细内容，可参考Wikipedia上的词条<a href="http://en.wikipedia.org/wiki/Betweenness_centrality">Betweenness Centrality</a>，和我的的上两篇文章<a href="/blog/2013/04/28/studying-notes-a-set-of-measures-of-centrality-based-on-betweenness/">A Set of Measures of Centrality Based on Betweenness</a>与<a href="http://yoyzhou.github.io/blog/2013/04/29/a-kinda-betweenness-centrality-algorithm/">A Kinda Betweenness Centrality Algorithm</a>。</p>
+
+<h4 id="section-2">网络群组</h4>
+
+<p>网络群组（Modularity）是社会网络分析中用于分析网络结构的一种方法。根据一个群组内部比群组外部具有更高密度的联结的原则，它将网络分成不同的群组（通常也叫群（groups）、族群（clusters）或者社群（communities）），通常用来侦测网络的社群结构。</p>
+
+<p>更多群组的信息请参考Wikipedia词条<a href="http://en.wikipedia.org/wiki/Modularity_(networks)">Modularity</a>.</p>
+
+<h3 id="section-3">数据来源</h3>
+
+<h4 id="section-4">数据收集</h4>
+
+<p>本文所使用的数据来源于新浪微博的用户关注信息，一共收集了30999个新浪微博用户的关注信息，去重后被关注的用户数量为3,940,891位。</p>
+
+<p>以下是收集数据的概述：</p>
+
+<p><strong>数据收集时间</strong>：2013.3.18~2013.4.2</p>
+
+<p><strong>原始数据</strong>：包含两部分，一部分是用户信息，另一部分是用户的关注信息</p>
+
+<p><strong>用户信息</strong>：用户信息从用户的/info页面上收集</p>
+
+<p><strong>用户关注信息</strong>：用户关注信息从用户的/follow页面逐页收集</p>
+
+<h4 id="section-5">数据预处理</h4>
+
+<p>首先，我们定义微博名人为：在我们所收集的数据中，被关注的次数大于等于1000；然后利用上小节中收集的数据，使用<a href="http://hadoop.apache.org/">Hadoop</a>将数据处理为：”用户, 关注用户”的形式。对于如何在Hadoop中使用Filter处理数据可以参考我的文章<a href="/blog/2013/04/21/adding-filter-in-hadoop-mapper-class/">Adding Filter in Hadoop Mapper Class</a>；最后我们获得了一个包含218,071个节点，677,268条边的微薄名人（有向）关注网络。</p>
+
+<p>需要注意的是在下面的分析中，由于计算资源的有限，我们在Hadoop获得的结果上，进一步将节点数缩小到100个，相应的边的数量为4820。这一步骤是由限制名人网络中节点入度为178实现的。</p>
+
+<h3 id="section-6">微博名人关注网络分析</h3>
+
+<h4 id="section-7">中介中心性和群组分析</h4>
+
+<p>下表列出了中介中心性Top20的微博名人（数据保留小数点后两位）。可以看出在我们的数据集中老沉（新浪执行副总裁、总编辑陈彤）、薛蛮子（著名天使投资人）和徐小平（真格基金创始人、新东方联合创始人）名列前三，李开复中心性值排在第七，为108.16；有11个账户的中介中心性值超过100，他们在网络中处于最短路径上的次数大于100。</p>
+
+<table>
+  <tbody>
+    <tr>
+      <td>排名</td>
+      <td>微博帐号</td>
+      <td>中介中心性值</td>
+      <td>群组</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>老沉</td>
+      <td>188.31</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>薛蛮子</td>
+      <td>156.74</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>徐小平</td>
+      <td>142.70</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>王利芬</td>
+      <td>127.67</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>正和岛刘东华</td>
+      <td>124.40</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>封新城</td>
+      <td>119.40</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td>李开复</td>
+      <td>108.16</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td>巴曙松</td>
+      <td>104.45</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>9</td>
+      <td>作业本</td>
+      <td>103.95</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td>刘春</td>
+      <td>101.13</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>11</td>
+      <td>张力奋</td>
+      <td>100.36</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>12</td>
+      <td>王冉</td>
+      <td>99.05</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <td>13</td>
+      <td>财经网</td>
+      <td>97.46</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>14</td>
+      <td>华尔街日报中文网</td>
+      <td>94.45</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <td>15</td>
+      <td>李承鹏</td>
+      <td>88.33</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <td>16</td>
+      <td>王克勤</td>
+      <td>84.17</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <td>17</td>
+      <td>韩寒</td>
+      <td>79.72</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <td>18</td>
+      <td>章立凡</td>
+      <td>76.93</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <td>19</td>
+      <td>南都周刊</td>
+      <td>75.87</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <td>20</td>
+      <td>钱钢</td>
+      <td>75.75</td>
+      <td>2</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>上表中“群组”列给出了中心性Top20微博名人的群组分类，将他们大致分为三个群组：</p>
+
+<blockquote>
+  <p>+ <strong>互联网+青年导师</strong>，</p>
+</blockquote>
+
+<blockquote>
+  <p>+ <strong>新闻媒体相关</strong>，和</p>
+</blockquote>
+
+<blockquote>
+  <p>+ <strong>新知识分子</strong>。</p>
+</blockquote>
+
+<p>更直观的分类请参看下小节的可视化分析。</p>
+
+<h4 id="section-8">可视化分析</h4>
+
+<p>我们使用<a href="https://gephi.org/">Gephi</a>对微博名人关注网络数据进行可视化分析。如下图所示：</p>
+
+<p>图中节点大小代表中介中心性的大小，节点的颜色代表相应的群组，相同的节点颜色表示处于同一个群组，从图中可以清楚的看到群组的分布情况。</p>
+
+<p><img src="/images/fntk100.png" alt="fntk_100" /></p>
+
+<p><strong>动态交互网络</strong>：</p>
+
+<p><a href="/network/index.html">动态交互网络/Interactive Dynamic Network</a></p>
+
+<h3 id="section-9">结束语</h3>
+
+<p>本文运用社会网络分析方法，通过中介中心性和群组两个维度，对微博名人的关注网络进行了分析，通过分析我们得出了微博名人中介中心性，并且将微博名人的关注网络划分为了三个群组。</p>
+
+<p>虽然本文作者设想将本文作为<code>大数据</code>来进行分析，但是由于计算资源的有限，只能将分析的节点数一再降低；本文中对名人界定以数据集中被关注数量进行度量，更加准确的度量应该以现实微博中用户的被关注数量。</p>
+
+<p>如何在MapReduce框架下进行社交网络分析，将会是一个很价值的主题。</p>
+
+<p>最后，由于本文使用的数据是SINA微博用户数据的很小一部分，文中的排名和可视化网络并非SINA微博真实情况的反映，结论仅供参考。</p>
+
+<p><code>---EOF---</code></p>
+
+</div>
+  
+  
+
+
+      </article>
+    
+    
+      <article class="post">
+        
+  <header>
+    
+      <h2 class="post-title"><a href="/blog/2013/04/29/a-kinda-betweenness-centrality-algorithm/">A Kinda Betweenness Centrality Algorithm</a></h2>
+    
+    
+      <p class="post-meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-04-29T15:06:00-07:00" pubdate data-updated="true"></time>
+        
+         | <a href="/blog/2013/04/29/a-kinda-betweenness-centrality-algorithm/#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="post-content"><p>In this post I’d like to demonstrate a algorithm per computing the betweenness centrality which I have introduced in the previous post, for more details of what is Betweenness Centrality, and its measurements, please refer to my post <a href="/blog/2013/04/28/studying-notes-a-set-of-measures-of-centrality-based-on-betweenness/">A Set of Measures of Centrality Based on Betweenness</a>. </p>
+
+<h4 id="definitions-and-notations">Definitions and notations</h4>
+
+<p>Before getting down to the algorithm, first we briefly go through the definitions and notations.</p>
+
+<p><strong><em>Betweenness Centrality</em></strong> is “the degree to which a point falls on the shortest path between others”, it’s the core of the algorithm. Although computing <a href="http://en.wikipedia.org/wiki/Shortest_path_problem">shortest path</a> between point pair is essential to our problem, shortest path algorithm will not be the focus of this post. Readers interested in shortest path algorithm please refer to the shortest path on Wikipedia page <a href="http://en.wikipedia.org/wiki/Shortest_path_problem">here</a>, kindly note that even if you have no knowledge of shortest path algorithm, it will not affect you reading this post.</p>
+
+<p>In the next section, we use graph-theoretic terminology neutral to interpretation of notations.</p>
+
+<p>Given a <em>directed graph</em> <script type="math/tex">\begin{smallmatrix} G = \left( V, E \right) \end{smallmatrix}</script>, consists of a set of $V$ of vertices and a set of $E \subseteq V \times V$ of <em>derected</em> edges.</p>
+
+<p>Denote $\sigma(s, t)$ to the number of <em>shortest</em> $(s, t)$-paths, some times called geodesics, and let <script type="math/tex">\sigma(s,t \vert v)</script> be the number of shortest path which passing through certain vertex $v$ other than $s, t$, then the <em>betweenness centrality</em> $C_B(v)$ of vertex $v \in V$ is defined to be:</p>
+
+<script type="math/tex; mode=display">\begin{align}  C_B(v) = \sum\limits_{s,t \in V} \frac{\sigma(s,t \vert v)}{\sigma(s, t)} \end{align}</script>
+
+<h4 id="the-algorithm">The Algorithm</h4>
+<p>As quoted from “On variants of shortest-path betweenness centrality and their computation”:</p>
+
+<blockquote>
+  <p>Efficient computation of betweenness is based on the fact that the cubic number of <em>pair-wise dependencies <script type="math/tex">\delta(s,t \vert v) = \sigma(s, t \vert v)/ \sigma(s, t)</script></em> can be aggregated without computing all of them explicitly.</p>
+</blockquote>
+
+<p>Defining one-side dependencies:</p>
+
+<p><script type="math/tex">\begin{align} \delta(s \vert v) = \sum\limits_{t \in V} \delta(s, t \vert v)\end{align}</script>,</p>
+
+<p>per <script type="math/tex">\forall s, v \in V</script> we can exploit that</p>
+
+<script type="math/tex; mode=display">\begin{align} \delta(s \vert v) = \sum\limits_{w: (v, w) \in E  \ and \\\ dist(s, w) = dist(s, v) + 1} \left[ \frac{\sigma(s,v)}{\sigma(s, w)}
+\times \left( 1 + \delta(s \vert w) \right) \right]
+\end{align}</script>
+
+<p>where $dist(s, t)$ denotes the minimum path length of point pair $(s, t)$.</p>
+
+<p>The algorithm asserts that the dependency of a vertex $s$ on some $v$ can be compiled from dependencies on vertices <strong><em>one edge farther away</em></strong>. </p>
+
+<p>Since $w$ is connected to $v$ and <strong>one edge farther away</strong> (which determined by <script type="math/tex">dist(s, w) = dist(s, v) + 1</script>) from $v$, so point $v$ is on the shortest paths of $(s, w)$ and the proportion of betweenness value that $v$ gains from edge $(v, w)$ equals to $\frac{\sigma(s,v)}{\sigma(s, w)} \times 1$; the other part of betweenness gain is from point $w$, that <script type="math/tex">\frac{\sigma(s,v)}{\sigma(s, w)} \times \delta(s \vert w)</script>, thus sum of the above two parts of betweenness gain is what exactly the equation demonstrates.</p>
+
+<h4 id="references">References</h4>
+
+<p>[1] Linton C. Freeman. A set of measures of centrality based on betweenness. Sociometry, 40(1):35–41, March 1977.</p>
+
+<p>[2] Ulrik Brandes. On variants of shortest-path betweenness centrality and their generic computation. Social Networks, 30(2):136–145, May 2008.</p>
+
+<p><code>---EOF---</code></p>
+
+</div>
+  
+  
+
+
+      </article>
+    
+    
+      <article class="post">
+        
+  <header>
+    
+      <h2 class="post-title"><a href="/blog/2013/04/28/studying-notes-a-set-of-measures-of-centrality-based-on-betweenness/">A Set of Measures of Centrality Based on Betweenness</a></h2>
+    
+    
+      <p class="post-meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-04-28T23:49:00-07:00" pubdate data-updated="true"></time>
+        
+         | <a href="/blog/2013/04/28/studying-notes-a-set-of-measures-of-centrality-based-on-betweenness/#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="post-content"><p>This post is a studying notes of paper “A Set of Measures of Centrality Based on Betweenness”, the paper <a href="https://www.tribler.org/trac/raw-attachment/wiki/ReputationFunction/23.pdf">[pdf]</a>, wrote by Freeman in 1977, is an introductory and the most classic paper of <a href="http://en.wikipedia.org/wiki/Betweenness_centrality">betweenness centrality</a>. Based on the betweenness centrality concept first introduced by Bavelas in 1948, the paper introduces a set of measures of centrality, including point centrality, scale free (relative) point centrality, and graph centrality. </p>
+
+<h4 id="betweenness-and-point-centrality">Betweenness and Point Centrality</h4>
+
+<p>The classical centrality measures of Bavelas (1950) etc. can not be used by unconnected networks, since they define the centrality of a point as the sum of the minimum distance between that point and all others, thus all distance sums are infinite in unconnected networks.  </p>
+
+<p>In order to obtain a more satisfactory solution per centrality measurements, Freeman adopts the betweenness concept first introduced by  Bavelas, betweenness of a point is “the degree to which a point falls on the shortest path between others”, and therefore has a potential per control of communication, persons in such central positions could influence the group by “ withholding information (or) coloring, or distorting it in transmission”.</p>
+
+<h4 id="measurement-of-point-centrality">Measurement of Point Centrality</h4>
+<p>Consider a unordered pair of  points {<script type="math/tex">p_i, p_j</script>} <script type="math/tex">(i \neq j)</script>. Either <script type="math/tex">p_i \text{ and } p_j</script> are unreachable from each other or  there are one or more paths between them. In the later case, each path has a length equals to the number of edges contained in it. Among the paths connecting pi and pj, one or more have the shortest length: the <strong>geodesics</strong>.</p>
+
+<p>If $p_i$ and $p_j$ are unreachable from each other, then <script type="math/tex">b_{ij}(p_k)</script>, denotes betweenness centrality of point <script type="math/tex">p_k</script> with respect to <script type="math/tex">p_i</script> and <script type="math/tex">p_j</script>, is zero;</p>
+
+<p>If <script type="math/tex">p_i</script> and <script type="math/tex">p_j</script> are <em>adjacent</em>, means that there is only one edge connecting them, since <script type="math/tex">p_k</script> does not reside on the shortest paths of <script type="math/tex">p_i</script> and <script type="math/tex">p_j</script>, <script type="math/tex">b_{ij}(p_k)</script> also equals to zero;</p>
+
+<p>If <script type="math/tex">p_k</script> is on one or more shortest paths of <script type="math/tex">p_i</script> and <script type="math/tex">p_j</script>, in which situations, <script type="math/tex">p_k</script> has a proportional control of communication between <script type="math/tex">p_i</script> and <script type="math/tex">p_j</script>, and intuitively the proportion is the percentage/extent to which <script type="math/tex">p_k</script> is on the shortest paths, given the total shortest paths of <script type="math/tex">p_i</script> and <script type="math/tex">p_j</script> is <script type="math/tex">g_{ij}</script> and the number of <script type="math/tex">p_k</script> falls in the shortest paths is <script type="math/tex">g_{ij}(p_k)</script>, then we get <script type="math/tex">b_{ij}(p_k) = g_{ij}(p_k)/g_{ij}</script>. As the equation shows below:</p>
+
+<script type="math/tex; mode=display">% <![CDATA[
+b_{ij}(p_k) = \begin{cases} 
+0 & p_i \mbox{ and } p_j \mbox{ are unreachable or adjacent} \\ 
+g_{ij}(p_k)/g_{ij} & \text{otherwise} 
+\end{cases} %]]></script>
+
+<p>To determine the overall centrality of <script type="math/tex">p_k</script> in the graph, we need merely to sum the partial betweenness value of all unordered pair of points {<script type="math/tex">p_i, p_j</script>} in the graph:</p>
+
+<script type="math/tex; mode=display">\begin{align} C_B(p_k) = \sum\limits_{i}^n \sum\limits_{j}^n b_{ij}(p_k) \mbox{ where } i \lt j \mbox{ and } i,j \neq k  \end{align}</script>
+
+<h4 id="scale-free-point-centrality">Scale-free Point Centrality</h4>
+
+<p>One problem with the above point centrality is it not point independent/scale-free, it is related to how many points in the graph, thus comparing point centrality defined above with different graphs which may contain different amount of point is meaningless. A concreted example is pointed out that  6 betweenness value in 5 points graph compared with 6 betweenness value in 25 points graph, although they have the same betweenness centrality value but the influence of them is different.</p>
+
+<p>In the later section Freeman introduced a relative point centrality, which is scale free to how many points in the graph, where point centrality <script type="math/tex">C'_B(p_k)</script> is divided by the maximum centrality of their graph.</p>
+
+<script type="math/tex; mode=display">\begin{align} C'_B(p_k) = \dfrac{\sum\limits_{i}^n \sum\limits_{j}^n b_{ij}(p_k)} {\mbox{Max } C_B(p_k^*)} \end{align} </script>
+
+<p>where <script type="math/tex">n</script> is the number of points in the graph, and <script type="math/tex">\begin{smallmatrix} \text{Max } C_B(p_k^*) \end{smallmatrix}</script> is only determined by n, which is <script type="math/tex">\begin{smallmatrix} \frac{n \times (n-1)}{2} - (n-1) = \frac{n^2 - 3n + 2}{2} \end{smallmatrix}</script>, therefore we obtain:</p>
+
+<script type="math/tex; mode=display">\begin{align} C'_B(p_k) = \dfrac{2 \times \sum\limits_{i}^n \sum\limits_{j}^n b_{ij}(p_k)}{n^2 - 3n + 2} \end{align} </script>
+
+<p>To get more information of how <script type="math/tex">\begin{smallmatrix} \text{Max } C_B(p_k^*) \end{smallmatrix}</script> is computed, please refer to the paper for details, you can imagine such a point that stands on the shortest path of all other pairs of {<script type="math/tex">p_i, p_j</script>}, where <script type="math/tex">p_i</script> and <script type="math/tex">p_j</script> have merely <strong>one</strong> shortest path, such a graph looks like a star graph, that one point in the central and all others surround it.</p>
+
+<h4 id="graph-centrality">Graph Centrality</h4>
+
+<p>Freeman defines the graph centrality as the average difference between the most central point and all others, which sounds like a little bit of <strong><em>information entropy</em></strong>, I think.</p>
+
+<script type="math/tex; mode=display">\begin{align}
+C'_B = \dfrac{\sum\limits_{i}^n \left( C'_B(p_k^*) - C'_B(p_k) \right)}{n - 1} 
+\end{align}</script>
+
+<p>where <script type="math/tex">\begin{smallmatrix} C'_B(p_k^*) \end{smallmatrix}</script> is the relative point centrality value of the most central point <script type="math/tex">p_k^*</script> in the graph.</p>
+
+<p>From the equation, we can see if all the points have the same centrality value then the graph centrality is 0; and if the graph is a star or wheel graph, then graph centrality is 1.</p>
+
+<p><code>---EOF---</code></p>
+
+</div>
+  
+  
+
+
+      </article>
+    
+    
+      <article class="post">
+        
+  <header>
+    
+      <h2 class="post-title"><a href="/blog/2013/04/21/adding-filter-in-hadoop-mapper-class/">Adding Filter in Hadoop Mapper Class</a></h2>
+    
+    
+      <p class="post-meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-04-21T15:08:00-07:00" pubdate data-updated="true"></time>
+        
+         | <a href="/blog/2013/04/21/adding-filter-in-hadoop-mapper-class/#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="post-content"><p>There is my solutions to tackle the disk spaces shortage problem I described in the <a href="/blog/2013/04/20/my-first-luckily-and-sad-hadoop-results/">previous post</a>. The core principle of the solution is to reduce the number of output records at Mapper stage; the method I used is <strong>Filter</strong>, adding a filter, which I will explain later, to decrease the output records of Mapper, which in turn significantly decrease the Mapper’s Spill records, and fundamentally decrease the disk space usages. After applying the filter, with 30,661 records. some 200MB data set as inputs, the total Spill Records is 25,471,725,  and it <strong>only</strong> takes about 509MB disk spaces!</p>
+
+<h4 id="followed-filter">Followed Filter</h4>
+
+<p>And now I’m going to reveal what’s kinda Filter it looks like, and how did I accomplish that filter.
+The true face of the <strong>FILTER</strong> is called  <strong>Followed Filter</strong>, it filters users from computing co-followed combinations if their followed number does not satisfy a certain number, called <strong>Followed Threshold</strong>. </p>
+
+<p>Followed Filter is used to reduce the co-followed combinations at Mapper stage. Say we set the followed threshold to 100, meaning users who doesn’t own 100 fans(be followed by 100 other users) will be ignored during co-followed combinations computing stage(to get the actual number of the threshold we need analyze statistics of user’s followed number of our data set).</p>
+
+<h4 id="reason">Reason</h4>
+
+<p>Choosing followed filter is reasonable because how many user follows is a metric of user’s popularity/famousness.</p>
+
+<h4 id="how">HOW</h4>
+
+<p>In order to accomplish it, we need:</p>
+
+<p><strong>First</strong>, counting user’s followed number among our data set, which needs a new MapReduce Job;</p>
+
+<p><strong>Second</strong>, choosing a followed threshold after analyze the statistics perspective of followed number data set got in first step;</p>
+
+<p><strong>Third</strong>, using DistrbutedCache of Hadoop to cache users who satisfy the filter to all Mappers;</p>
+
+<p><strong>Forth</strong>, adding followed filter to Mapper class, only users satisfy filter condition will be passed into co-followed combination computing phrase;</p>
+
+<p><strong>Fifth</strong>, adding co-followed filter/threshold in Reducer side if necessary.</p>
+
+<h4 id="outcomes">Outcomes</h4>
+<p>Here is the Hadoop Job Summary, after applying the followed filter with followed threshold of 1000, that means only users who are followed by 1000 users will have the opportunity to co-followed combinations, compared with the Job Summary in my previous post, most all metrics have significant improvements:</p>
+
+<table>
+  <tbody>
+    <tr>
+      <td>Counter</td>
+      <td>Map</td>
+      <td>Reduce</td>
+      <td>Total</td>
+    </tr>
+    <tr>
+      <td>Bytes Written</td>
+      <td>0</td>
+      <td>1,798,185</td>
+      <td>1,798,185</td>
+    </tr>
+    <tr>
+      <td>Bytes Read</td>
+      <td>203,401,876</td>
+      <td>0</td>
+      <td>203,401,876</td>
+    </tr>
+    <tr>
+      <td>FILE_BYTES_READ</td>
+      <td>405,219,906</td>
+      <td>52,107,486</td>
+      <td>457,327,392</td>
+    </tr>
+    <tr>
+      <td><strong><em>HDFS_BYTES_READ</em></strong></td>
+      <td><strong><em>203,402,751</em></strong></td>
+      <td>0</td>
+      <td>203,402,751</td>
+    </tr>
+    <tr>
+      <td><strong><em>FILE_BYTES_WRITTEN</em></strong></td>
+      <td>457,707,759</td>
+      <td>52,161,704</td>
+      <td><strong><em>509,869,463</em></strong></td>
+    </tr>
+    <tr>
+      <td>HDFS_BYTES_WRITTEN</td>
+      <td>0</td>
+      <td>1,798,185</td>
+      <td>1,798,185</td>
+    </tr>
+    <tr>
+      <td>Reduce input groups</td>
+      <td>0</td>
+      <td>373,680</td>
+      <td>373,680</td>
+    </tr>
+    <tr>
+      <td>Map output materialized bytes</td>
+      <td>52,107,522</td>
+      <td>0</td>
+      <td>52,107,522</td>
+    </tr>
+    <tr>
+      <td>Combine output records</td>
+      <td>22,202,756</td>
+      <td>0</td>
+      <td>22,202,756</td>
+    </tr>
+    <tr>
+      <td><strong><em>Map input records</em></strong></td>
+      <td><strong><em>30,661</em></strong></td>
+      <td>0</td>
+      <td>30,661</td>
+    </tr>
+    <tr>
+      <td>Reduce shuffle bytes</td>
+      <td>0</td>
+      <td>52,107,522</td>
+      <td>52,107,522</td>
+    </tr>
+    <tr>
+      <td>Physical memory (bytes) snapshot</td>
+      <td>2,646,589,440</td>
+      <td>116,408,320</td>
+      <td>2,762,997,760</td>
+    </tr>
+    <tr>
+      <td><strong><em>Reduce output records</em></strong></td>
+      <td>0</td>
+      <td><strong><em>373,680</em></strong></td>
+      <td>373,680</td>
+    </tr>
+    <tr>
+      <td><strong><em>Spilled Records</em></strong></td>
+      <td><strong><em>22,866,351</em></strong></td>
+      <td>2,605,374</td>
+      <td>25,471,725</td>
+    </tr>
+    <tr>
+      <td>Map output bytes</td>
+      <td>2,115,139,050</td>
+      <td>0</td>
+      <td>2,115,139,050</td>
+    </tr>
+    <tr>
+      <td>Total committed heap usage (bytes)</td>
+      <td>2,813,853,696</td>
+      <td>84,738,048</td>
+      <td>2,898,591,744</td>
+    </tr>
+    <tr>
+      <td>CPU time spent (ms)</td>
+      <td>5,766,680</td>
+      <td>11,210</td>
+      <td>5,777,890</td>
+    </tr>
+    <tr>
+      <td>Virtual memory (bytes) snapshot</td>
+      <td>9,600,737,280</td>
+      <td>1,375,002,624</td>
+      <td>10,975,739,904</td>
+    </tr>
+    <tr>
+      <td>SPLIT_RAW_BYTES</td>
+      <td>875</td>
+      <td>0</td>
+      <td>875</td>
+    </tr>
+    <tr>
+      <td><strong><em>Map output records</em></strong></td>
+      <td><strong><em>117,507,725</em></strong></td>
+      <td>0</td>
+      <td>117,507,725</td>
+    </tr>
+    <tr>
+      <td>Combine input records</td>
+      <td>137,105,107</td>
+      <td>0</td>
+      <td>137,105,107</td>
+    </tr>
+    <tr>
+      <td>Reduce input records</td>
+      <td>0</td>
+      <td>2,605,374</td>
+      <td>2,605,374</td>
+    </tr>
+  </tbody>
+</table>
+
+<h4 id="ps">P.S.</h4>
+<p>Frankly Speaking, chances are <strong>I am on the wrong way to Hadoop Programming</strong>, since I’m palying <code>Pesudo Distribution Hadoop</code> with my personal computer, which has 4 CUPs and 4G RAM, in real Hadoop Cluster disk spaces might never be a trouble, and all the tuning work I have done may turn into meaningless efforts. Before the Followed Filter, I also did some Hadoop tuning like customed Writable class, RawComparator, block size and io.sort.mb, etc.</p>
+
+<p><code>---EOF---</code></p>
+
+</div>
+  
+  
+
+
+      </article>
+    
+    
+      <article class="post">
+        
+  <header>
+    
+      <h2 class="post-title"><a href="/blog/2013/04/14/steps-of-programming-hadoop-with-eclipse/">使用Eclipse开发MapReduce程序的步骤</a></h2>
+    
+    
+      <p class="post-meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-04-14T20:58:00-07:00" pubdate data-updated="true"></time>
+        
+         | <a href="/blog/2013/04/14/steps-of-programming-hadoop-with-eclipse/#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="post-content"><p>以下8个步骤是我在使用Eclipse开发MapReduce程序时的路线，假定读者已经配置好了Hadoop环境并且了解Eclipse的相关操作。</p>
+
+<p>步骤<code>0～4</code>为在Eclipse中编写和调试MapReduce程序；步骤<code>5、6</code>为在伪分布模式下运行MapReduce程序，并且通过导出项目到指定目录实现了Eclipse项目与Hadoop的关联。</p>
+
+<p>0 创建Java项目</p>
+
+<p>1 在项目的CLASS PATH中添加<a href="http://hadoop.apache.org/">Hadoop</a>相关的JAR引用（注意在添加JAR文件，而不是JAR文件夹，要不然在4中会因为找不到JAR或者Class而报错）</p>
+
+<blockquote>
+  <p>如果你还下载了Hadoop的<a href="http://hadoop.apache.org/releases.html">源码</a>，也可以给Hadoop相关的JAR添加源码，这样在Eclipse就可以使用F3参看Hadoop源码）</p>
+</blockquote>
+
+<p>2 按照<a href="http://hadoop.apache.org/docs/r1.0.4/mapred_tutorial.html">MapReduce</a>类规范，编写自己的MapReduce类</p>
+
+<p>3 配置MapReduce类的运行参数</p>
+
+<p>4 在Eclipse中以单机模式运行/调试程序</p>
+
+<p>5 将程序导出（Export）为JAR文件到$HADOOP_HOME/lib下</p>
+
+<p>6 在伪分布模式下运行程序 bin/hadoop jar lib/ur-exported-jar.JAR full-class-name 参数列表</p>
+
+<blockquote>
+  <p>例如，你导出的JAR文件名为myhadoop.jar，类名称com.coolcompany.wordcount，命令就是：bin/hadoop jar lib/myhadoop.jar com.coolcompany.wordcount 参数列表</p>
+</blockquote>
+
+<p>7 部署程序到真实的Hadoop集群</p>
+
+<p><code>---EOF---</code></p>
+
+</div>
+  
+  
+
+
+      </article>
+    
+      <div class="page-navigator">
+        <div class="nav-center">
+        <a href="/blog/archives">Archives</a>
+        </div>
+      </div>
+     </div>
+  </div>
+    
+  <aside id="secondary">
+  
+    
+<section class="widget">
+	<h3 class="widget-title">About Me</h3>
+	<p><code style="font-size: 14px;">Writing is the best way of learning</code></p>
+</section>
+<section class="widget">
+	<h3 class="widget-title">Recent Posts</h3>
+	<ul class="widget-list">
+		
+     	<li>
+      	  <a href="/blog/2013/06/04/mahout-clustering-with-hadoop/">在Hadoop上运行Mahout KMeans聚类分析</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/26/clustering-with-mahout/">Mahout与聚类分析</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/13/hadoop-write-ur-own-rawcomparator/">使用RawComparator加速Hadoop程序</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/10/hadoop-serialization-and-writable-object-2/">Hadoop序列化与Writable接口(二)</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/09/hadoop-serialization-and-writable-object-1/">Hadoop序列化与Writable接口(一)</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/29/viz-following-networks-of-weibo-celebrities/">微博名人关注网络的社会网络分析</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/29/a-kinda-betweenness-centrality-algorithm/">A Kinda Betweenness Centrality Algorithm</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/28/studying-notes-a-set-of-measures-of-centrality-based-on-betweenness/">A Set of Measures of Centrality Based on Betweenness</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/21/adding-filter-in-hadoop-mapper-class/">Adding Filter in Hadoop Mapper Class</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/14/steps-of-programming-hadoop-with-eclipse/">使用Eclipse开发MapReduce程序的步骤</a>
+      	</li>
+    	
+	</ul>
+</section>
+
+<section class="widget">
+  <h3>GitHub Repos</h3>
+  <ul id="gh_repos" class="widget-list">
+    <li class="loading">Status updating&#8230;</li>
+  </ul>
+  
+  <a href="https://github.com/yoyzhou">@yoyzhou</a> on GitHub
+  
+  <script type="text/javascript">
+    $.domReady(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'yoyzhou',
+            count: 0,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+
+
+
+  
+  </aside>
+
+
+      	</div>
+    </div>
+  </div>
+  <footer id="footer">
+  	<div class="container">
+	Copyright &copy; 2014 - yoyzhou -
+  <span class="credit">Powered by <a rel="nofollow" href="http://octopress.org">Octopress</a> on <a rel="nofollow" href="http://pages.github.com/">GitHubPages</a>
+  </span>
+  - <span class="credit">Theme by <a rel="nofollow" href="http://pagecho.com">Cho</a></span>
+
+
+</div>
+
+  </footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'yoyzhou';
+      
+        
+        var disqus_script = 'count.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+
+
+
+
+</body>
+</html>

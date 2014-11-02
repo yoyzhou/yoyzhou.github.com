@@ -1,0 +1,471 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!-->
+<html class="no-js" lang="zh-CN"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>使用Beautiful Soup抽取网页数据，解析微博用户关注信息 - Zhou&#8217;s Blog</title>
+  <meta name="author" content="yoyzhou">
+  <!--[if lt IE 9]>
+    <script src="http://x.papaapp.com/farm1/a571d2/8dda131d/html5shiv.js"></script>
+    <![endif]-->
+  
+  <meta name="description" content="本文介绍了Beautiful Soup，PYTHON实现的HTML/XML标记的解析器；简要描述了Beautiful Soup的安装以及使用；最后以抽取微博用户关注信息为例详细的演示了如何使用Beautiful Soup。">
+  <meta name="keywords" content="Python, WEIBO, BeautifulSoup, Social Network, Data Analysis">
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://yoyzhou.github.io/blog/2013/03/23/extract-data-with-beautifulsoup-taking-weibo-4-example/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script type="text/javascript" src="http://t.papaapp.com/js/libs/jquery/1.7.2/jquery.js"></script>
+   <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <script src="/javascripts/modernizr-2.0.js"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+	      jax: ["input/TeX", "output/HTML-CSS"],
+		  tex2jax: {
+		  inlineMath: [ ['$', '$'], ["\\(", "\\)"] ],
+		  displayMath: [ ['$$', '$$'], ["\\[", "\\]"] ],
+		  processEscapes: true,
+		  skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+		}}
+   );
+</script>
+<script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML" type="text/javascript"></script>
+<script src="/javascripts/ender.js"></script>
+<script src="/javascripts/octopress.js" type="text/javascript"></script>
+<link href="/atom.xml" rel="alternate" title="Zhou's Blog" type="application/atom+xml">
+
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-34034666-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <header id="header" class="clearfix">    <div class="container">
+        <div class="col-group">
+            <div class="site-name ">
+                <a id="logo" href="/">
+                   Zhou&#8217;s Blog
+                </a>
+                <p class="description">There is no truth as such, there is only truth from a point of view [Nietzsche]</p>
+            </div>
+            <div>
+                <nav id="nav-menu" class="clearfix">
+                    <a class="index-nav current" href="/">Blog</a>
+<a class="archives-nav" href="/blog/archives">Archives</a>
+                </nav>
+            </div>
+        </div>
+    </div>
+</header>
+  <div id="body">
+    <div class="container">
+    	<div class="col-group">
+			<div class="col-8" id="main">
+  <div class="res-cons">
+  <article class="post clearfix">
+  
+  <header>
+    
+      <h1 class="post-title">使用Beautiful Soup抽取网页数据，解析微博用户关注信息</h1>
+    
+    
+      <p class="post-meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-03-23T17:14:00-07:00" pubdate data-updated="true"></time>
+        
+         | <a href="#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+<div class="post-content"><p>本文介绍了Beautiful Soup，PYTHON实现的HTML/XML标记的解析器；简要描述了Beautiful Soup的安装以及使用；最后以抽取微博用户关注信息为例详细的演示了如何使用Beautiful Soup。</p>
+
+<h3 id="beautiful-soup">什么是Beautiful Soup</h3>
+<p><a href="http://www.crummy.com/software/BeautifulSoup/">Beautiful Soup</a>是用PYTHON实现的HTML/XML标记的解析器。它提供简单和通用的方法对HTML/XML语法树进行浏览（navigating），搜索（searching）以及修改（searching）。它甚至可以针对不规范的标记生成语法树，可以大大地减少开发人员的时间。</p>
+
+<blockquote>
+  <p>Beautiful Soup is an HTML/XML parser for Python that can turn even invalid markup into a parse tree. It provides simple, idiomatic ways of navigating, searching, and modifying the parse tree. It commonly saves programmers hours or days of work. <cite><a href="http://www.crummy.com/software/BeautifulSoup/bs3/documentation.html">Beautiful Soup</a></cite></p>
+</blockquote>
+
+<h3 id="beautiful-soup-1">安装Beautiful Soup</h3>
+<p>安装Beautiful Soup很简单，如果你已经安装过pip或者easy_install,如果您还没有安装过Python安装工具，建议您参考<a href="/blog/2012/08/12/install-python-setuptools-slash-distribute-for-both-python2-and-python3/">Install Python Setuptools/Distribute for Python2 and Python3</a>。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+</pre></td><td class="code"><pre><code class="bash"><span class="line">sudo easy_install beautifulsoup4
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p>需要注意的是：BeautifulSoup4支持Python 2.x和3.x，而BeautifulSoup3只支持Python 2.x，Beautiful Soup官网建议大家应该使用BeautifulSoup4而不是BeautifulSoup3。</p>
+
+<blockquote>
+  <p>Beautiful Soup 3 only works on Python 2.x, but Beautiful Soup 4 also works on Python 3.x. Beautiful Soup 4 is faster, has more features, and works with third-party parsers like lxml and html5lib. You should use Beautiful Soup 4 for all new projects.</p>
+</blockquote>
+
+<h3 id="beautiful-soup-2">使用Beautiful Soup</h3>
+<p>首先，导入Beautiful Soup。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="kn">from</span> <span class="nn">bs4</span> <span class="kn">import</span> <span class="n">BeautifulSoup</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p>注意如果你使用的是BeautifulSoup3，那么导入语句可能是：</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="kn">from</span> <span class="nn">BeautifulSoup</span> <span class="kn">import</span> <span class="n">BeautifulSoup</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p>然后，使用BeautifulSoup为你生成标记语言的语法树。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="n">soup</span> <span class="o">=</span> <span class="n">BeautifulSoup</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="s">&#39;my.html&#39;</span><span class="p">))</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+<p>得到了语法树soup之后，就可以调用相应的接口浏览，搜索和修改你的标记文件。比如下面的语句搜索my.html中所有’action-type’是’user_item’的div：</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="n">soup</span><span class="o">.</span><span class="n">findAll</span><span class="p">(</span><span class="s">&#39;div&#39;</span><span class="p">,</span> <span class="n">attrs</span><span class="o">=</span><span class="p">{</span><span class="s">&#39;action-type&#39;</span> <span class="p">:</span> <span class="s">&#39;user_item&#39;</span><span class="p">})</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>上面简单介绍了Beautiful Soup的安装和使用，更多Beautiful Soup的文档请参考官方文档<a href="http://www.crummy.com/software/BeautifulSoup/bs3/documentation.html">bs3</a>和<a href="http://www.crummy.com/software/BeautifulSoup/">bs4</a>。下面我们以从WEIBO.COM页面中解析出用户的关注信息为例，介绍Beautiful Soup的使用。</p>
+
+<h3 id="beautiful-soup-3">Beautiful Soup实例：解析微博用户的关注信息</h3>
+<p>社交网络中的关注信息（followings）是用户对什么人/东西感兴趣的一种表达，从关注信息中可以得到用户的兴趣偏好，又因为关注信息有用户自己维护，所以相对于粉丝（followers）信息更能体现个人偏好。以微博来说，关注就是用户关注的人，一般认为用户是根据自己的兴趣爱好出发有选择的关注帐号。</p>
+
+<p>微博中有两种关注，我的关注和他人的关注，由于这两种关注的页面结构不同，所以在解析的时候需要分别对待，但是分析的过程是同理的，只是在抽取数据是的页面标签不一样，使用上面的Beautiful Soup工具，抽取时标签的定位会很容易，这就是使用Beautiful Soup带来的好处。</p>
+
+<h4 id="inspect-element">1.使用浏览器的<code>Inspect Element</code>功能理解页面的结构</h4>
+
+<p>最新版的Chrome和Firefox都自身内置有<code>Inspect Element</code>功能，在编写代码时，可能要经常的使用它来定位要寻找的页面元素。Chrome浏览器<code>Inspect Element</code>的使用请参考<a href="https://developers.google.com/chrome-developer-tools/docs/elements">Chrome Developer Tools - Elements Panel</a>。
+<!-- more --></p>
+
+<h4 id="htmlbeautiful-soup">2.从页面中提取用户关注的HTML字段，构建Beautiful Soup对象</h4>
+
+<p>通过上面一步的分析，我们大致了解用户关注列表的页面结构，接下来就把页面文件/流导入到Beautiful Soup中，让它为我们生成页面结构树。可是当我们查看新浪微博页面源码的时候，情况却不是这样的，我们发现页面源码中很多信息并不是以HTML元素的形式呈现，而是以plain文本形式放到了页面的Javacript脚本里面，这时就更加凸显了Beautiful Soup的伟大之处了，只要我们在Script里面找到了相应的代码（实际上是json格式存放的数据），抽取出来再导入到Beautiful Soup中，这个问题也就迎刃而解。下面的正则表达式用来从页面中提取Script中的json数据并且使用其中的HTML字段生成soup：</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">def</span> <span class="nf">parse_followings</span><span class="p">(</span><span class="n">page_content</span><span class="p">):</span>
+</span><span class="line">    <span class="sd">&#39;&#39;&#39;</span>
+</span><span class="line"><span class="sd">    @param page_content: html page file or response stream from Internet</span>
+</span><span class="line"><span class="sd">    &#39;&#39;&#39;</span>
+</span><span class="line">
+</span><span class="line">    <span class="c">#reguler expression to extract json data which contains html info</span>
+</span><span class="line">    <span class="n">patt_view</span> <span class="o">=</span> <span class="s">&#39;&lt;script&gt;STK &amp;&amp; STK.pageletM &amp;&amp; STK.pageletM.view\((.*)\)&lt;/script&gt;&#39;</span>
+</span><span class="line">    <span class="n">patt</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">patt_view</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">MULTILINE</span><span class="p">)</span>
+</span><span class="line">
+</span><span class="line">    <span class="n">weibo_scripts</span> <span class="o">=</span> <span class="n">patt</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="n">page_content</span><span class="p">)</span>
+</span><span class="line">
+</span><span class="line">    <span class="k">for</span> <span class="n">script</span> <span class="ow">in</span> <span class="n">weibo_scripts</span><span class="p">:</span>
+</span><span class="line">	<span class="n">view_json</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">script</span><span class="p">)</span>
+</span><span class="line">
+</span><span class="line">        <span class="k">if</span> <span class="s">&#39;html&#39;</span> <span class="ow">in</span> <span class="n">view_json</span> <span class="ow">and</span> <span class="n">view_json</span><span class="p">[</span><span class="s">&#39;pid&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;pl_relation_hisFollow&#39;</span><span class="p">:</span>
+</span><span class="line">            <span class="n">html</span> <span class="o">=</span> <span class="n">view_json</span><span class="p">[</span><span class="s">&#39;html&#39;</span><span class="p">]</span>
+</span><span class="line">            <span class="n">soup</span> <span class="o">=</span> <span class="n">BeautifulSoup</span><span class="p">(</span><span class="n">html</span><span class="p">)</span>	<span class="c">#WOW...we got the soup</span>
+</span><span class="line">		
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<h4 id="beautiful-soup-4">3.通过Beautiful Soup获取需要的页面元素，并从中抽取感兴趣的信息</h4>
+
+<p>通过上一步获得following的HTML信息，导入到Beautiful Soup中，接下来就使用Beautiful Soup抽取信息了。如何去定位元素当然有很多方式，结合<code>Inspect Element</code>,可以很容易的做到，获得元素之后就可以抽取需要的信息了。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+<span class="line-number">19</span>
+<span class="line-number">20</span>
+<span class="line-number">21</span>
+<span class="line-number">22</span>
+<span class="line-number">23</span>
+<span class="line-number">24</span>
+<span class="line-number">25</span>
+<span class="line-number">26</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line">	
+</span><span class="line"><span class="c">#all the followings, search according element type(li) and attributes</span>
+</span><span class="line"><span class="n">friendollowings</span> <span class="o">=</span> <span class="n">soup</span><span class="o">.</span><span class="n">findAll</span><span class="p">(</span><span class="s">&#39;li&#39;</span><span class="p">,</span> <span class="n">attrs</span><span class="o">=</span><span class="p">{</span><span class="s">&#39;class&#39;</span><span class="p">:</span><span class="s">&#39;clearfix S_line1&#39;</span><span class="p">,</span> <span class="s">&#39;action-type&#39;</span> <span class="p">:</span> <span class="s">&#39;itemClick&#39;</span><span class="p">})</span>
+</span><span class="line">
+</span><span class="line"><span class="k">for</span> <span class="n">user_item</span> <span class="ow">in</span> <span class="n">friendollowings</span><span class="p">:</span>
+</span><span class="line">
+</span><span class="line">    <span class="n">action_data</span> <span class="o">=</span> <span class="n">user_item</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;action-data&#39;</span><span class="p">)</span>
+</span><span class="line">    <span class="n">user_info</span> <span class="o">=</span> <span class="p">{}</span>
+</span><span class="line">    <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">action_data</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;&amp;&quot;</span><span class="p">):</span>
+</span><span class="line">        <span class="n">field_name</span><span class="p">,</span> <span class="n">field_value</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;=&#39;</span><span class="p">)</span>
+</span><span class="line">        <span class="n">user_info</span><span class="p">[</span><span class="n">field_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">field_value</span>
+</span><span class="line">
+</span><span class="line">
+</span><span class="line">    <span class="k">for</span>  <span class="n">info</span> <span class="ow">in</span>  <span class="p">[</span><span class="n">more</span> <span class="k">for</span> <span class="n">more</span> <span class="ow">in</span> <span class="n">user_item</span><span class="p">(</span><span class="s">&#39;div&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">more</span><span class="p">,</span> <span class="n">Tag</span><span class="p">)]:</span>
+</span><span class="line">        <span class="n">class_name</span> <span class="o">=</span> <span class="n">info</span><span class="p">[</span><span class="s">&#39;class&#39;</span><span class="p">]</span>
+</span><span class="line">        <span class="k">if</span> <span class="n">class_name</span> <span class="o">==</span> <span class="s">&#39;name&#39;</span><span class="p">:</span>
+</span><span class="line">            <span class="n">user_info</span><span class="p">[</span><span class="s">&#39;name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">clean_content</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">a</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+</span><span class="line">            <span class="n">user_info</span><span class="p">[</span><span class="s">&#39;address&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">clean_content</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">span</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+</span><span class="line">        <span class="k">elif</span> <span class="n">class_name</span> <span class="o">==</span> <span class="s">&#39;connect&#39;</span><span class="p">:</span>
+</span><span class="line">            <span class="n">user_info</span><span class="p">[</span><span class="s">&#39;connect&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">clean_content</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+</span><span class="line">        <span class="k">elif</span> <span class="n">class_name</span> <span class="o">==</span> <span class="s">&#39;face mbspace&#39;</span><span class="p">:</span> <span class="c">#face image</span>
+</span><span class="line">            <span class="n">user_info</span><span class="p">[</span><span class="s">&#39;face&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">a</span><span class="o">.</span><span class="n">img</span><span class="p">[</span><span class="s">&#39;src&#39;</span><span class="p">]</span>
+</span><span class="line">        <span class="k">elif</span> <span class="n">class_name</span> <span class="o">==</span> <span class="s">&#39;weibo&#39;</span><span class="p">:</span>
+</span><span class="line">            <span class="k">pass</span>
+</span><span class="line">            <span class="c">#user_info[&#39;lasttweet&#39;] = clean_content(info.text)</span>
+</span><span class="line">
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<h3 id="section">结束语</h3>
+<p>文中阐述了如何使用Beautiful Soup抽取微博页面的用户关注信息，最后有几点需要提出：
+1.模拟用户登录</p>
+
+<p>结合本人的上一篇文章<a href="/blog/2013/03/18/sina-weibo-login-simulator-in-python/">Python模拟登录新浪微博（使用RSA加密方式和Cookies文件）</a>，可以实现模拟用户登录之后发送用户关注的URL请求<code>http://weibo.com/{uid}/follow</code>获得用户关注的页面；</p>
+
+<p>2.分页抽取</p>
+
+<p>解析页面<code>http://weibo.com/{uid}/follow</code>可以获取用户关注的总页面数，通过<code>http://weibo.com/{uid}/follow?page={page_num}</code>可以实现分页抽取。</p>
+
+<h3 id="section-1">相关阅读</h3>
+
+<p>1. <a href="/blog/2013/03/18/sina-weibo-login-simulator-in-python/">Python模拟登录新浪微薄（使用RSA加密方式和Cookies文件）</a>,使用RSA2加密方式模拟登录SINA微博。</p>
+
+<p>2. <a href="/blog/2013/04/08/weibo-scrapy-framework-with-multi-threading/">基于UID的WEIBO信息抓取框架WEIBO_SCRAPY</a>，详细介绍了多线程WEIBO数据抓取框架WEIBO_SCRAPY。</p>
+
+<p><code>---EOF---</code></p>
+
+<!-- PUT reference-style links below-->
+
+</div>
+
+
+  <footer class="post-footer">
+    <div class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">yoyzhou</span></span>
+ under 
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/beautifulsoup/'>beautifulsoup</a>, <a class='category' href='/blog/categories/data-analysis/'>data analysis</a>, <a class='category' href='/blog/categories/python/'>python</a>, <a class='category' href='/blog/categories/social-network/'>social network</a>, <a class='category' href='/blog/categories/weibo/'>weibo</a>
+  
+</span>
+
+
+    </div>
+    
+      <div class="sharing">
+  
+  
+  
+</div>
+
+    
+    <div class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2013/03/18/sina-weibo-login-simulator-in-python/" title="Previous Post: Python模拟登录新浪微薄（使用RSA加密方式和Cookies文件）">&laquo; Python模拟登录新浪微薄（使用RSA加密方式和Cookies文件）</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2013/04/08/weibo-scrapy-framework-with-multi-threading/" title="Next Post: 基于UID的WEIBO信息抓取框架WEIBO_SCRAPY">基于UID的WEIBO信息抓取框架WEIBO_SCRAPY &raquo;</a>
+      
+    </div>
+  </footer>
+</article>
+
+  <section>
+    <h3>Comments</h3>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+  </div>
+</div>
+
+  <aside id="secondary">
+  
+    
+<section class="widget">
+	<h3 class="widget-title">About Me</h3>
+	<p><code style="font-size: 14px;">Writing is the best way of learning</code></p>
+</section>
+<section class="widget">
+	<h3 class="widget-title">Recent Posts</h3>
+	<ul class="widget-list">
+		
+     	<li>
+      	  <a href="/blog/2013/06/04/mahout-clustering-with-hadoop/">在Hadoop上运行Mahout KMeans聚类分析</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/26/clustering-with-mahout/">Mahout与聚类分析</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/13/hadoop-write-ur-own-rawcomparator/">使用RawComparator加速Hadoop程序</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/10/hadoop-serialization-and-writable-object-2/">Hadoop序列化与Writable接口(二)</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/09/hadoop-serialization-and-writable-object-1/">Hadoop序列化与Writable接口(一)</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/29/viz-following-networks-of-weibo-celebrities/">微博名人关注网络的社会网络分析</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/29/a-kinda-betweenness-centrality-algorithm/">A Kinda Betweenness Centrality Algorithm</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/28/studying-notes-a-set-of-measures-of-centrality-based-on-betweenness/">A Set of Measures of Centrality Based on Betweenness</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/21/adding-filter-in-hadoop-mapper-class/">Adding Filter in Hadoop Mapper Class</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/14/steps-of-programming-hadoop-with-eclipse/">使用Eclipse开发MapReduce程序的步骤</a>
+      	</li>
+    	
+	</ul>
+</section>
+
+<section class="widget">
+  <h3>GitHub Repos</h3>
+  <ul id="gh_repos" class="widget-list">
+    <li class="loading">Status updating&#8230;</li>
+  </ul>
+  
+  <a href="https://github.com/yoyzhou">@yoyzhou</a> on GitHub
+  
+  <script type="text/javascript">
+    $.domReady(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'yoyzhou',
+            count: 0,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+
+
+
+  
+</aside>
+
+
+      	</div>
+    </div>
+  </div>
+  <footer id="footer">
+  	<div class="container">
+	Copyright &copy; 2014 - yoyzhou -
+  <span class="credit">Powered by <a rel="nofollow" href="http://octopress.org">Octopress</a> on <a rel="nofollow" href="http://pages.github.com/">GitHubPages</a>
+  </span>
+  - <span class="credit">Theme by <a rel="nofollow" href="http://pagecho.com">Cho</a></span>
+
+
+</div>
+
+  </footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'yoyzhou';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://yoyzhou.github.io/blog/2013/03/23/extract-data-with-beautifulsoup-taking-weibo-4-example/';
+        var disqus_url = 'http://yoyzhou.github.io/blog/2013/03/23/extract-data-with-beautifulsoup-taking-weibo-4-example/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+
+
+
+
+</body>
+</html>

@@ -1,0 +1,1641 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!-->
+<html class="no-js" lang="zh-CN"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Python线程同步机制: Locks, RLocks, Semaphores, Conditions, Events和Queues - Zhou&#8217;s Blog</title>
+  <meta name="author" content="yoyzhou">
+  <!--[if lt IE 9]>
+    <script src="http://x.papaapp.com/farm1/a571d2/8dda131d/html5shiv.js"></script>
+    <![endif]-->
+  
+  <meta name="description" content="本文详细地阐述了Python线程同步机制。你将学习到以下有关Python线程同步机制：Lock，RLock，Semaphore，Condition，Event和Queue，还有Python的内部是如何实现这些机制。">
+  <meta name="keywords" content="Python, Threading, Threads, Locks, RLocks, Semaphores, Conditions, Events, Synchronization">
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://yoyzhou.github.io/blog/2013/02/28/python-threads-synchronization-locks/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script type="text/javascript" src="http://t.papaapp.com/js/libs/jquery/1.7.2/jquery.js"></script>
+   <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <script src="/javascripts/modernizr-2.0.js"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+	      jax: ["input/TeX", "output/HTML-CSS"],
+		  tex2jax: {
+		  inlineMath: [ ['$', '$'], ["\\(", "\\)"] ],
+		  displayMath: [ ['$$', '$$'], ["\\[", "\\]"] ],
+		  processEscapes: true,
+		  skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+		}}
+   );
+</script>
+<script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML" type="text/javascript"></script>
+<script src="/javascripts/ender.js"></script>
+<script src="/javascripts/octopress.js" type="text/javascript"></script>
+<link href="/atom.xml" rel="alternate" title="Zhou's Blog" type="application/atom+xml">
+
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-34034666-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <header id="header" class="clearfix">    <div class="container">
+        <div class="col-group">
+            <div class="site-name ">
+                <a id="logo" href="/">
+                   Zhou&#8217;s Blog
+                </a>
+                <p class="description">There is no truth as such, there is only truth from a point of view [Nietzsche]</p>
+            </div>
+            <div>
+                <nav id="nav-menu" class="clearfix">
+                    <a class="index-nav current" href="/">Blog</a>
+<a class="archives-nav" href="/blog/archives">Archives</a>
+                </nav>
+            </div>
+        </div>
+    </div>
+</header>
+  <div id="body">
+    <div class="container">
+    	<div class="col-group">
+			<div class="col-8" id="main">
+  <div class="res-cons">
+  <article class="post clearfix">
+  
+  <header>
+    
+      <h1 class="post-title">Python线程同步机制: Locks, RLocks, Semaphores, Conditions, Events和Queues</h1>
+    
+    
+      <p class="post-meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-02-28T23:24:00-08:00" pubdate data-updated="true"></time>
+        
+         | <a href="#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+<div class="post-content"><blockquote>
+  <p>翻译自<a href="http://www.laurentluce.com/">Laurent Luce</a>的博客<br />
+原文名称：Python threads synchronization: Locks, RLocks, Semaphores, Conditions, Events and Queues<br />
+原文连接：<a href="http://www.laurentluce.com/posts/python-threads-synchronization-locks-rlocks-semaphores-conditions-events-and-queues/">http://www.laurentluce.com/posts/python-threads-synchronization-locks-rlocks-semaphores-conditions-events-and-queues/</a></p>
+</blockquote>
+
+<p>本文详细地阐述了Python线程同步机制。你将学习到以下有关Python线程同步机制：Lock，RLock，Semaphore，Condition，Event和Queue，还有Python的内部是如何实现这些机制的。
+本文给出的程序的源代码可以在<a href="https://github.com/laurentluce/python-tutorials/tree/master/threads">github</a>上找到。</p>
+
+<p>首先让我们来看一个没有使用线程同步的简单程序。</p>
+<h2>线程（Threading）</h2>
+<p>我们希望编程一个从一些URL中获得内容并且将内容写入文件的程序，完成这个程序可以不使用线程，为了加快获取的速度，我们使用2个线程，每个线程处理一半的URL。</p>
+
+<p>注：完成这个程序的最好方式是使用一个URL队列，但是以下面的例子开始我的讲解更加合适。</p>
+
+<p>类FetchUrls是threading.Thread的子类，他拥有一个URL列表和一个写URL内容的文件对象。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+<span class="line-number">19</span>
+<span class="line-number">20</span>
+<span class="line-number">21</span>
+<span class="line-number">22</span>
+<span class="line-number">23</span>
+<span class="line-number">24</span>
+<span class="line-number">25</span>
+<span class="line-number">26</span>
+<span class="line-number">27</span>
+<span class="line-number">28</span>
+<span class="line-number">29</span>
+<span class="line-number">30</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">class</span> <span class="nc">FetchUrls</span><span class="p">(</span><span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">):</span>
+</span><span class="line">  <span class="sd">&quot;&quot;&quot;</span>
+</span><span class="line"><span class="sd">  下载URL内容的线程</span>
+</span><span class="line"><span class="sd">  &quot;&quot;&quot;</span>
+</span><span class="line">
+</span><span class="line">  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">urls</span><span class="p">,</span> <span class="n">output</span><span class="p">):</span>
+</span><span class="line">    <span class="sd">&quot;&quot;&quot;</span>
+</span><span class="line"><span class="sd">    构造器</span>
+</span><span class="line">
+</span><span class="line"><span class="sd">    @param urls 需要下载的URL列表</span>
+</span><span class="line"><span class="sd">    @param output 写URL内容的输出文件</span>
+</span><span class="line"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span class="line">    <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</span><span class="line">    <span class="bp">self</span><span class="o">.</span><span class="n">urls</span> <span class="o">=</span> <span class="n">urls</span>
+</span><span class="line">    <span class="bp">self</span><span class="o">.</span><span class="n">output</span> <span class="o">=</span> <span class="n">output</span>
+</span><span class="line">
+</span><span class="line">  <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span class="line">    <span class="sd">&quot;&quot;&quot;</span>
+</span><span class="line"><span class="sd">    实现父类Thread的run方法，打开URL，并且一个一个的下载URL的内容</span>
+</span><span class="line"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span class="line">    <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">urls</span><span class="p">:</span>
+</span><span class="line">      <span class="n">url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">urls</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+</span><span class="line">      <span class="n">req</span> <span class="o">=</span> <span class="n">urllib2</span><span class="o">.</span><span class="n">Request</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+</span><span class="line">      <span class="k">try</span><span class="p">:</span>
+</span><span class="line">        <span class="n">d</span> <span class="o">=</span> <span class="n">urllib2</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span><span class="n">req</span><span class="p">)</span>
+</span><span class="line">      <span class="k">except</span> <span class="n">urllib2</span><span class="o">.</span><span class="n">URLError</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+</span><span class="line">        <span class="k">print</span> <span class="s">&#39;URL </span><span class="si">%s</span><span class="s"> failed: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">e</span><span class="o">.</span><span class="n">reason</span><span class="p">)</span>
+</span><span class="line">      <span class="bp">self</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+</span><span class="line">      <span class="k">print</span> <span class="s">&#39;write done by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+</span><span class="line">      <span class="k">print</span> <span class="s">&#39;URL </span><span class="si">%s</span><span class="s"> fetched by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>main函数启动了两个线程，之后让他们下载URL内容。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+</span><span class="line">  <span class="c"># URL列表1</span>
+</span><span class="line">  <span class="n">urls1</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;http://www.google.com&#39;</span><span class="p">,</span> <span class="s">&#39;http://www.facebook.com&#39;</span><span class="p">]</span>
+</span><span class="line">  <span class="c"># URL列表2</span>
+</span><span class="line">  <span class="n">urls2</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;http://www.yahoo.com&#39;</span><span class="p">,</span> <span class="s">&#39;http://www.youtube.com&#39;</span><span class="p">]</span>
+</span><span class="line">  <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="s">&#39;output.txt&#39;</span><span class="p">,</span> <span class="s">&#39;w+&#39;</span><span class="p">)</span>
+</span><span class="line">  <span class="n">t1</span> <span class="o">=</span> <span class="n">FetchUrls</span><span class="p">(</span><span class="n">urls1</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
+</span><span class="line">  <span class="n">t2</span> <span class="o">=</span> <span class="n">FetchUrls</span><span class="p">(</span><span class="n">urls2</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
+</span><span class="line">  <span class="n">t1</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+</span><span class="line">  <span class="n">t2</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+</span><span class="line">  <span class="n">t1</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+</span><span class="line">  <span class="n">t2</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+</span><span class="line">  <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</span><span class="line">
+</span><span class="line"><span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+</span><span class="line">  <span class="n">main</span><span class="p">()</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>上面的程序将出现两个线程同时写一个文件的情况，导致文件一团乱码。我们需要找到一种在给定的时间里只有一个线程写文件的方法。实现的方法就是使用像锁（Locks）这样的线程同步机制。</p>
+
+<h2>锁（Lock）</h2>
+<p>锁有两种状态：被锁（locked）和没有被锁（unlocked）。拥有acquire()和release()两种方法，并且遵循一下的规则：</p>
+<ul>
+<li>如果一个锁的状态是unlocked，调用acquire()方法改变它的状态为locked；</li>
+<li>如果一个锁的状态是locked，acquire()方法将会阻塞，直到另一个线程调用release()方法释放了锁；</li>
+<li>如果一个锁的状态是unlocked调用release()会抛出RuntimeError异常；</li>
+<li>如果一个锁的状态是locked，调用release()方法改变它的状态为unlocked。</li>
+</ul>
+<p>解决上面两个线程同时写一个文件的问题的方法就是：我们给类FetchUrls的构造器中传入一个锁（lock），使用这个锁来保护文件操作，实现在给定的时间只有一个线程写文件。下面的代码只显示了关于lock部分的修改。完整的源码可以在threads/lock.py中找到。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+<span class="line-number">19</span>
+<span class="line-number">20</span>
+<span class="line-number">21</span>
+<span class="line-number">22</span>
+<span class="line-number">23</span>
+<span class="line-number">24</span>
+<span class="line-number">25</span>
+<span class="line-number">26</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">class</span> <span class="nc">FetchUrls</span><span class="p">(</span><span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">):</span>
+</span><span class="line">  <span class="o">...</span>
+</span><span class="line">
+</span><span class="line">  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">urls</span><span class="p">,</span> <span class="n">output</span><span class="p">,</span> <span class="n">lock</span><span class="p">):</span>
+</span><span class="line">    <span class="o">...</span>
+</span><span class="line">    <span class="bp">self</span><span class="o">.</span><span class="n">lock</span> <span class="o">=</span> <span class="n">lock</span>	<span class="c">#传入的lock对象</span>
+</span><span class="line">
+</span><span class="line">  <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span class="line">    <span class="o">...</span>
+</span><span class="line">    <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">urls</span><span class="p">:</span>
+</span><span class="line">      <span class="o">...</span>
+</span><span class="line">      <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>	<span class="c">#获得lock对象，lock状态变为locked，并且阻塞其他线程获取lock对象（写文件的权利）</span>
+</span><span class="line">      <span class="k">print</span> <span class="s">&#39;lock acquired by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+</span><span class="line">      <span class="bp">self</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+</span><span class="line">      <span class="k">print</span> <span class="s">&#39;write done by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+</span><span class="line">      <span class="k">print</span> <span class="s">&#39;lock released by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+</span><span class="line">      <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>	<span class="c">#释放lock对象，lock状态变为unlocked，其他的线程可以重新获取lock对象</span>
+</span><span class="line">      <span class="o">...</span>
+</span><span class="line">
+</span><span class="line"><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+</span><span class="line">  <span class="o">...</span>
+</span><span class="line">  <span class="n">lock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+</span><span class="line">  <span class="o">...</span>
+</span><span class="line">  <span class="n">t1</span> <span class="o">=</span> <span class="n">FetchUrls</span><span class="p">(</span><span class="n">urls1</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">lock</span><span class="p">)</span>
+</span><span class="line">  <span class="n">t2</span> <span class="o">=</span> <span class="n">FetchUrls</span><span class="p">(</span><span class="n">urls2</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">lock</span><span class="p">)</span>
+</span><span class="line">  <span class="o">...</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p><img src="http://www.laurentluce.com/images/blog/threads/lock.png" /></p>
+
+<p>以下是程序的输出：</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+</pre></td><td class="code"><pre><code class="sh"><span class="line"><span class="nv">$ </span>python locks.py
+</span><span class="line">lock acquired by Thread-2
+</span><span class="line">write <span class="k">done</span> by Thread-2
+</span><span class="line">lock released by Thread-2
+</span><span class="line">URL http://www.youtube.com fetched by Thread-2
+</span><span class="line">lock acquired by Thread-1
+</span><span class="line">write <span class="k">done</span> by Thread-1
+</span><span class="line">lock released by Thread-1
+</span><span class="line">URL http://www.facebook.com fetched by Thread-1
+</span><span class="line">lock acquired by Thread-2
+</span><span class="line">write <span class="k">done</span> by Thread-2
+</span><span class="line">lock released by Thread-2
+</span><span class="line">URL http://www.yahoo.com fetched by Thread-2
+</span><span class="line">lock acquired by Thread-1
+</span><span class="line">write <span class="k">done</span> by Thread-1
+</span><span class="line">lock released by Thread-1
+</span><span class="line">URL http://www.google.com fetched by Thread-1
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>从上面的输出我们可以看出，写文件的操作被锁保护，没有出现两个线程同时写一个文件的现象。</p>
+
+<p>下面我们看一下Python内部是如何实现锁（Lock）的。我正在使用的Python版本是Linux操作系统上的Python 2.6.6。</p>
+
+<p>threading模块的Lock()方法就是thread.allocate_lock，代码可以在Lib/threading.py中找到。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="n">Lock</span> <span class="o">=</span> <span class="n">_allocate_lock</span>
+</span><span class="line"><span class="n">_allocate_lock</span> <span class="o">=</span> <span class="n">thread</span><span class="o">.</span><span class="n">allocate_lock</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+<!-- more -->
+<p>C的实现在Python/thread_pthread.h中。程序假定你的系统支持POSIX信号量（semaphores）。sem_init()初始化锁（Lock）所在地址的信号量。初始的信号量值是1，意味着锁没有被锁（unlocked）。信号量将在处理器的不同线程之间共享。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+</pre></td><td class="code"><pre><code class="c"><span class="line"><span class="n">PyThread_type_lock</span>
+</span><span class="line"><span class="nf">PyThread_allocate_lock</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+</span><span class="line"><span class="p">{</span>
+</span><span class="line">    <span class="p">...</span>
+</span><span class="line">    <span class="n">lock</span> <span class="o">=</span> <span class="p">(</span><span class="kt">sem_t</span> <span class="o">*</span><span class="p">)</span><span class="n">malloc</span><span class="p">(</span><span class="k">sizeof</span><span class="p">(</span><span class="kt">sem_t</span><span class="p">));</span>
+</span><span class="line">
+</span><span class="line">    <span class="k">if</span> <span class="p">(</span><span class="n">lock</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="line">        <span class="n">status</span> <span class="o">=</span> <span class="n">sem_init</span><span class="p">(</span><span class="n">lock</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">);</span>
+</span><span class="line">        <span class="n">CHECK_STATUS</span><span class="p">(</span><span class="s">&quot;sem_init&quot;</span><span class="p">);</span>
+</span><span class="line">        <span class="p">....</span>
+</span><span class="line">    <span class="p">}</span>
+</span><span class="line">    <span class="p">...</span>
+</span><span class="line"><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>当acquire()方法被调用时，下面的C代码将被执行。默认的waitflag值是1，表示调用将被被阻塞直到锁被释放。sem_wait()方法减少信号量的值或者被阻塞直到信号量大于零。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+</pre></td><td class="code"><pre><code class="c"><span class="line"><span class="kt">int</span>
+</span><span class="line"><span class="nf">PyThread_acquire_lock</span><span class="p">(</span><span class="n">PyThread_type_lock</span> <span class="n">lock</span><span class="p">,</span> <span class="kt">int</span> <span class="n">waitflag</span><span class="p">)</span>
+</span><span class="line"><span class="p">{</span>
+</span><span class="line">    <span class="p">...</span>
+</span><span class="line">    <span class="k">do</span> <span class="p">{</span>
+</span><span class="line">        <span class="k">if</span> <span class="p">(</span><span class="n">waitflag</span><span class="p">)</span>
+</span><span class="line">            <span class="n">status</span> <span class="o">=</span> <span class="n">fix_status</span><span class="p">(</span><span class="n">sem_wait</span><span class="p">(</span><span class="n">thelock</span><span class="p">));</span>
+</span><span class="line">        <span class="k">else</span>
+</span><span class="line">            <span class="n">status</span> <span class="o">=</span> <span class="n">fix_status</span><span class="p">(</span><span class="n">sem_trywait</span><span class="p">(</span><span class="n">thelock</span><span class="p">));</span>
+</span><span class="line">    <span class="p">}</span> <span class="k">while</span> <span class="p">(</span><span class="n">status</span> <span class="o">==</span> <span class="n">EINTR</span><span class="p">);</span> <span class="cm">/* Retry if interrupted by a signal */</span>
+</span><span class="line">    <span class="p">....</span>
+</span><span class="line"><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>当release()方法被调用时，下面的C代码将被执行。sem_post()方法增加信号量。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+</pre></td><td class="code"><pre><code class="c"><span class="line"><span class="kt">void</span>
+</span><span class="line"><span class="nf">PyThread_release_lock</span><span class="p">(</span><span class="n">PyThread_type_lock</span> <span class="n">lock</span><span class="p">)</span>
+</span><span class="line"><span class="p">{</span>
+</span><span class="line">    <span class="p">...</span>
+</span><span class="line">    <span class="n">status</span> <span class="o">=</span> <span class="n">sem_post</span><span class="p">(</span><span class="n">thelock</span><span class="p">);</span>
+</span><span class="line">    <span class="p">...</span>
+</span><span class="line"><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>可以将锁（Lock）与“with”语句一起使用，锁可以作为上下文管理器（context manager）。使用“with”语句的好处是：当程序执行到“with”语句时，acquire()方法将被调用，当程序执行完“with”语句时，release()方法会被调用（译注：这样我们就不用显示地调用acquire()和release()方法，而是由“with”语句根据上下文来管理锁的获取和释放。）下面我们用“with”语句重写FetchUrls类。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">class</span> <span class="nc">FetchUrls</span><span class="p">(</span><span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">):</span>
+</span><span class="line">  <span class="o">...</span>
+</span><span class="line">  <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span class="line">    <span class="o">...</span>
+</span><span class="line">    <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">urls</span><span class="p">:</span>
+</span><span class="line">      <span class="o">...</span>
+</span><span class="line">      <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>	<span class="c">#使用“with”语句管理锁的获取和释放</span>
+</span><span class="line">        <span class="k">print</span> <span class="s">&#39;lock acquired by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+</span><span class="line">        <span class="k">print</span> <span class="s">&#39;write done by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+</span><span class="line">        <span class="k">print</span> <span class="s">&#39;lock released by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+</span><span class="line">      <span class="o">...</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<h2>可重入锁（RLock）</h2>
+
+<p>RLock是可重入锁（reentrant lock），acquire()能够不被阻塞的被同一个线程调用多次。要注意的是release()需要调用与acquire()相同的次数才能释放锁。</p>
+
+<p>使用Lock，下面的代码第二次调用acquire()时将被阻塞：</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="n">lock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+</span><span class="line"><span class="n">lock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+</span><span class="line"><span class="n">lock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>如果你使用的是RLock，下面的代码第二次调用acquire()不会被阻塞:</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="n">rlock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">RLock</span><span class="p">()</span>
+</span><span class="line"><span class="n">rlock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+</span><span class="line"><span class="n">rlock</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>RLock使用的同样是thread.allocate_lock()，不同的是他跟踪宿主线程（the owner thread）来实现可重入的特性。下面是RLock的acquire()实现。如果调用acquire()的线程是资源的所有者，记录调用acquire()次数的计数器就会加1。如果不是，就将试图去获取锁。线程第一次获得锁时，锁的拥有者将会被保存，同时计数器初始化为1。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">def</span> <span class="nf">acquire</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">blocking</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+</span><span class="line">    <span class="n">me</span> <span class="o">=</span> <span class="n">_get_ident</span><span class="p">()</span>
+</span><span class="line">    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__owner</span> <span class="o">==</span> <span class="n">me</span><span class="p">:</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">__count</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__count</span> <span class="o">+</span> <span class="mi">1</span>
+</span><span class="line">        <span class="o">...</span>
+</span><span class="line">        <span class="k">return</span> <span class="mi">1</span>
+</span><span class="line">    <span class="n">rc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__block</span><span class="o">.</span><span class="n">acquire</span><span class="p">(</span><span class="n">blocking</span><span class="p">)</span>
+</span><span class="line">    <span class="k">if</span> <span class="n">rc</span><span class="p">:</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">__owner</span> <span class="o">=</span> <span class="n">me</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">__count</span> <span class="o">=</span> <span class="mi">1</span>
+</span><span class="line">        <span class="o">...</span>
+</span><span class="line">    <span class="o">...</span>
+</span><span class="line">    <span class="k">return</span> <span class="n">rc</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>下面我们看一下可重入锁（RLock）的release()方法。首先它会去确认调用者是否是锁的拥有者。如果是的话，计数器减1；如果计数器为0，那么锁将会被释放，这时其他线程就可以去获取锁了。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">def</span> <span class="nf">release</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span class="line">    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__owner</span> <span class="o">!=</span> <span class="n">_get_ident</span><span class="p">():</span>
+</span><span class="line">        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;cannot release un-acquired lock&quot;</span><span class="p">)</span>
+</span><span class="line">    <span class="bp">self</span><span class="o">.</span><span class="n">__count</span> <span class="o">=</span> <span class="n">count</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__count</span> <span class="o">-</span> <span class="mi">1</span>
+</span><span class="line">    <span class="k">if</span> <span class="ow">not</span> <span class="n">count</span><span class="p">:</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">__owner</span> <span class="o">=</span> <span class="bp">None</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">__block</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+</span><span class="line">        <span class="o">...</span>
+</span><span class="line">    <span class="o">...</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<h2>条件（Condition）</h2>
+<p>条件同步机制是指：一个线程等待特定条件，而另一个线程发出特定条件满足的信号。
+解释条件同步机制的一个很好的例子就是生产者/消费者（producer/consumer）模型。生产者随机的往列表中“生产”一个随机整数，而消费者从列表中“消费”整数。完整的源码可以在threads/condition.py中找到</p>
+
+<p>在producer类中，producer获得锁，生产一个随机整数，通知消费者有了可用的“商品”，并且释放锁。producer无限地向列表中添加整数，同时在两个添加操作中间随机的停顿一会儿。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+<span class="line-number">19</span>
+<span class="line-number">20</span>
+<span class="line-number">21</span>
+<span class="line-number">22</span>
+<span class="line-number">23</span>
+<span class="line-number">24</span>
+<span class="line-number">25</span>
+<span class="line-number">26</span>
+<span class="line-number">27</span>
+<span class="line-number">28</span>
+<span class="line-number">29</span>
+<span class="line-number">30</span>
+<span class="line-number">31</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">class</span> <span class="nc">Producer</span><span class="p">(</span><span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">):</span>
+</span><span class="line">  <span class="sd">&quot;&quot;&quot;</span>
+</span><span class="line"><span class="sd">  向列表中生产随机整数</span>
+</span><span class="line"><span class="sd">  &quot;&quot;&quot;</span>
+</span><span class="line">
+</span><span class="line">  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">integers</span><span class="p">,</span> <span class="n">condition</span><span class="p">):</span>
+</span><span class="line">    <span class="sd">&quot;&quot;&quot;</span>
+</span><span class="line"><span class="sd">    构造器</span>
+</span><span class="line">
+</span><span class="line"><span class="sd">    @param integers 整数列表</span>
+</span><span class="line"><span class="sd">    @param condition 条件同步对象</span>
+</span><span class="line"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span class="line">    <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</span><span class="line">    <span class="bp">self</span><span class="o">.</span><span class="n">integers</span> <span class="o">=</span> <span class="n">integers</span>
+</span><span class="line">    <span class="bp">self</span><span class="o">.</span><span class="n">condition</span> <span class="o">=</span> <span class="n">condition</span>
+</span><span class="line">
+</span><span class="line">  <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span class="line">    <span class="sd">&quot;&quot;&quot;</span>
+</span><span class="line"><span class="sd">    实现Thread的run方法。在随机时间向列表中添加一个随机整数</span>
+</span><span class="line"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span class="line">    <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+</span><span class="line">      <span class="n">integer</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">256</span><span class="p">)</span>
+</span><span class="line">      <span class="bp">self</span><span class="o">.</span><span class="n">condition</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>	<span class="c">#获取条件锁</span>
+</span><span class="line">      <span class="k">print</span> <span class="s">&#39;condition acquired by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+</span><span class="line">      <span class="bp">self</span><span class="o">.</span><span class="n">integers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">integer</span><span class="p">)</span>
+</span><span class="line">      <span class="k">print</span> <span class="s">&#39;</span><span class="si">%d</span><span class="s"> appended to list by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">integer</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+</span><span class="line">      <span class="k">print</span> <span class="s">&#39;condition notified by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+</span><span class="line">      <span class="bp">self</span><span class="o">.</span><span class="n">condition</span><span class="o">.</span><span class="n">notify</span><span class="p">()</span>	<span class="c">#唤醒消费者线程</span>
+</span><span class="line">      <span class="k">print</span> <span class="s">&#39;condition released by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+</span><span class="line">      <span class="bp">self</span><span class="o">.</span><span class="n">condition</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>	<span class="c">#释放条件锁</span>
+</span><span class="line">      <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>		<span class="c">#暂停1秒钟</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>下面是消费者（consumer）类。它获取锁，检查列表中是否有整数，如果没有，等待生产者的通知。当消费者获取整数之后，释放锁。<br />
+注意在wait()方法中会释放锁，这样生产者就能获得资源并且生产“商品”。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+<span class="line-number">19</span>
+<span class="line-number">20</span>
+<span class="line-number">21</span>
+<span class="line-number">22</span>
+<span class="line-number">23</span>
+<span class="line-number">24</span>
+<span class="line-number">25</span>
+<span class="line-number">26</span>
+<span class="line-number">27</span>
+<span class="line-number">28</span>
+<span class="line-number">29</span>
+<span class="line-number">30</span>
+<span class="line-number">31</span>
+<span class="line-number">32</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">class</span> <span class="nc">Consumer</span><span class="p">(</span><span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">):</span>
+</span><span class="line">  <span class="sd">&quot;&quot;&quot;</span>
+</span><span class="line"><span class="sd">  从列表中消费整数</span>
+</span><span class="line"><span class="sd">  &quot;&quot;&quot;</span>
+</span><span class="line">
+</span><span class="line">  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">integers</span><span class="p">,</span> <span class="n">condition</span><span class="p">):</span>
+</span><span class="line">    <span class="sd">&quot;&quot;&quot;</span>
+</span><span class="line"><span class="sd">    构造器</span>
+</span><span class="line">
+</span><span class="line"><span class="sd">    @param integers 整数列表</span>
+</span><span class="line"><span class="sd">    @param condition 条件同步对象</span>
+</span><span class="line"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span class="line">    <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</span><span class="line">    <span class="bp">self</span><span class="o">.</span><span class="n">integers</span> <span class="o">=</span> <span class="n">integers</span>
+</span><span class="line">    <span class="bp">self</span><span class="o">.</span><span class="n">condition</span> <span class="o">=</span> <span class="n">condition</span>
+</span><span class="line">
+</span><span class="line">  <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span class="line">    <span class="sd">&quot;&quot;&quot;</span>
+</span><span class="line"><span class="sd">    实现Thread的run()方法，从列表中消费整数</span>
+</span><span class="line"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span class="line">    <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+</span><span class="line">      <span class="bp">self</span><span class="o">.</span><span class="n">condition</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>	<span class="c">#获取条件锁</span>
+</span><span class="line">      <span class="k">print</span> <span class="s">&#39;condition acquired by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+</span><span class="line">      <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+</span><span class="line">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">integers</span><span class="p">:</span>	<span class="c">#判断是否有整数</span>
+</span><span class="line">          <span class="n">integer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">integers</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+</span><span class="line">          <span class="k">print</span> <span class="s">&#39;</span><span class="si">%d</span><span class="s"> popped from list by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">integer</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+</span><span class="line">          <span class="k">break</span>
+</span><span class="line">        <span class="k">print</span> <span class="s">&#39;condition wait by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">condition</span><span class="o">.</span><span class="n">wait</span><span class="p">()</span>	<span class="c">#等待商品，并且释放资源</span>
+</span><span class="line">      <span class="k">print</span> <span class="s">&#39;condition released by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+</span><span class="line">      <span class="bp">self</span><span class="o">.</span><span class="n">condition</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>	<span class="c">#最后释放条件锁</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p><img src="http://www.laurentluce.com/images/blog/threads/condition.png" /></p>
+
+<p>下面我们编写main方法，创建两个线程：</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+</span><span class="line">  <span class="n">integers</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span class="line">  <span class="n">condition</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Condition</span><span class="p">()</span>
+</span><span class="line">  <span class="n">t1</span> <span class="o">=</span> <span class="n">Producer</span><span class="p">(</span><span class="n">integers</span><span class="p">,</span> <span class="n">condition</span><span class="p">)</span>
+</span><span class="line">  <span class="n">t2</span> <span class="o">=</span> <span class="n">Consumer</span><span class="p">(</span><span class="n">integers</span><span class="p">,</span> <span class="n">condition</span><span class="p">)</span>
+</span><span class="line">  <span class="n">t1</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+</span><span class="line">  <span class="n">t2</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+</span><span class="line">  <span class="n">t1</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+</span><span class="line">  <span class="n">t2</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+</span><span class="line">
+</span><span class="line"><span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+</span><span class="line">  <span class="n">main</span><span class="p">()</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>下面是程序的输出：</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+</pre></td><td class="code"><pre><code class="sh"><span class="line"><span class="nv">$ </span>python condition.py
+</span><span class="line">condition acquired by Thread-1
+</span><span class="line"><span class="m">159</span> appended to list by Thread-1
+</span><span class="line">condition notified by Thread-1
+</span><span class="line">condition released by Thread-1
+</span><span class="line">condition acquired by Thread-2
+</span><span class="line"><span class="m">159</span> popped from list by Thread-2
+</span><span class="line">condition released by Thread-2
+</span><span class="line">condition acquired by Thread-2
+</span><span class="line">condition <span class="nb">wait </span>by Thread-2
+</span><span class="line">condition acquired by Thread-1
+</span><span class="line"><span class="m">116</span> appended to list by Thread-1
+</span><span class="line">condition notified by Thread-1
+</span><span class="line">condition released by Thread-1
+</span><span class="line"><span class="m">116</span> popped from list by Thread-2
+</span><span class="line">condition released by Thread-2
+</span><span class="line">condition acquired by Thread-2
+</span><span class="line">condition <span class="nb">wait </span>by Thread-2
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>Thread-1添加159到列表中，通知消费者同时释放锁，Thread-2获得锁，取回159，并且释放锁。此时因为执行time.sleep(1)，生产者正在睡眠，当消费者再次试图获取整数时，列表中并没有整数，这时消费者进入等待状态，等待生产者的通知。当wait()被调用时，它会释放资源，从而生产者能够利用资源生产整数。</p>
+
+<p>下面我们看一下Python内部是如何实现条件同步机制的。如果用户没有传入锁（lock）对象，condition类的构造器创建一个可重入锁（RLock），这个锁将会在调用acquire()和release()时使用。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">class</span> <span class="nc">_Condition</span><span class="p">(</span><span class="n">_Verbose</span><span class="p">):</span>
+</span><span class="line">
+</span><span class="line">    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lock</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+</span><span class="line">        <span class="n">_Verbose</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">verbose</span><span class="p">)</span>
+</span><span class="line">        <span class="k">if</span> <span class="n">lock</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+</span><span class="line">            <span class="n">lock</span> <span class="o">=</span> <span class="n">RLock</span><span class="p">()</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">__lock</span> <span class="o">=</span> <span class="n">lock</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>接下来是wait()方法。为了简化说明，我们假定在调用wait()方法时不使用timeout参数。wait()方法创建了一个名为waiter的锁，并且设置锁的状态为locked。这个waiter锁用于线程间的通讯，这样生产者（在生产完整数之后）就可以通知消费者释放waiter()锁。锁对象将会被添加到等待者列表，并且在调用waiter.acquire()时被阻塞。一开始condition锁的状态被保存，并且在wait()结束时被恢复。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">def</span> <span class="nf">wait</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+</span><span class="line">    <span class="o">...</span>
+</span><span class="line">    <span class="n">waiter</span> <span class="o">=</span> <span class="n">_allocate_lock</span><span class="p">()</span>
+</span><span class="line">    <span class="n">waiter</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+</span><span class="line">    <span class="bp">self</span><span class="o">.</span><span class="n">__waiters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">waiter</span><span class="p">)</span>
+</span><span class="line">    <span class="n">saved_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_release_save</span><span class="p">()</span>
+</span><span class="line">    <span class="k">try</span><span class="p">:</span>    <span class="c"># 无论如何恢复状态 (例如, KeyboardInterrupt)</span>
+</span><span class="line">        <span class="k">if</span> <span class="n">timeout</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+</span><span class="line">            <span class="n">waiter</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+</span><span class="line">            <span class="o">...</span>
+</span><span class="line">        <span class="o">...</span>
+</span><span class="line">    <span class="k">finally</span><span class="p">:</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">_acquire_restore</span><span class="p">(</span><span class="n">saved_state</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>当生产者调用notify()方法时，notify()释放waiter锁，唤醒被阻塞的消费者。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">def</span> <span class="nf">notify</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+</span><span class="line">    <span class="o">...</span>
+</span><span class="line">    <span class="n">__waiters</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__waiters</span>
+</span><span class="line">    <span class="n">waiters</span> <span class="o">=</span> <span class="n">__waiters</span><span class="p">[:</span><span class="n">n</span><span class="p">]</span>
+</span><span class="line">    <span class="o">...</span>
+</span><span class="line">    <span class="k">for</span> <span class="n">waiter</span> <span class="ow">in</span> <span class="n">waiters</span><span class="p">:</span>
+</span><span class="line">        <span class="n">waiter</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+</span><span class="line">        <span class="k">try</span><span class="p">:</span>
+</span><span class="line">            <span class="n">__waiters</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">waiter</span><span class="p">)</span>
+</span><span class="line">        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+</span><span class="line">            <span class="k">pass</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>同样Condition对象也可以和“with”语句一起使用，这样“with”语句上下文会帮我们调用acquire()和release()方法。下面的代码使用“with”语句改写了生产者和消费者类。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+<span class="line-number">19</span>
+<span class="line-number">20</span>
+<span class="line-number">21</span>
+<span class="line-number">22</span>
+<span class="line-number">23</span>
+<span class="line-number">24</span>
+<span class="line-number">25</span>
+<span class="line-number">26</span>
+<span class="line-number">27</span>
+<span class="line-number">28</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">class</span> <span class="nc">Producer</span><span class="p">(</span><span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">):</span>
+</span><span class="line">  <span class="o">...</span>
+</span><span class="line">  <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span class="line">    <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+</span><span class="line">      <span class="n">integer</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">256</span><span class="p">)</span>
+</span><span class="line">      <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">condition</span><span class="p">:</span>
+</span><span class="line">        <span class="k">print</span> <span class="s">&#39;condition acquired by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">integers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">integer</span><span class="p">)</span>
+</span><span class="line">        <span class="k">print</span> <span class="s">&#39;</span><span class="si">%d</span><span class="s"> appended to list by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">integer</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+</span><span class="line">        <span class="k">print</span> <span class="s">&#39;condition notified by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">condition</span><span class="o">.</span><span class="n">notify</span><span class="p">()</span>
+</span><span class="line">        <span class="k">print</span> <span class="s">&#39;condition released by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+</span><span class="line">      <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</span><span class="line">
+</span><span class="line"><span class="k">class</span> <span class="nc">Consumer</span><span class="p">(</span><span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">):</span>
+</span><span class="line">  <span class="o">...</span>
+</span><span class="line">  <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span class="line">    <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+</span><span class="line">      <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">condition</span><span class="p">:</span>
+</span><span class="line">        <span class="k">print</span> <span class="s">&#39;condition acquired by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+</span><span class="line">        <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+</span><span class="line">          <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">integers</span><span class="p">:</span>
+</span><span class="line">            <span class="n">integer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">integers</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+</span><span class="line">            <span class="k">print</span> <span class="s">&#39;</span><span class="si">%d</span><span class="s"> popped from list by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">integer</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+</span><span class="line">            <span class="k">break</span>
+</span><span class="line">          <span class="k">print</span> <span class="s">&#39;condition wait by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+</span><span class="line">          <span class="bp">self</span><span class="o">.</span><span class="n">condition</span><span class="o">.</span><span class="n">wait</span><span class="p">()</span>
+</span><span class="line">        <span class="k">print</span> <span class="s">&#39;condition released by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<h2>信号量（Semaphore）</h2>
+<p>信号量同步基于内部计数器，每调用一次acquire()，计数器减1；每调用一次release()，计数器加1.当计数器为0时，acquire()调用被阻塞。这是迪科斯彻（Dijkstra）信号量概念P()和V()的Python实现。信号量同步机制适用于访问像服务器这样的有限资源。</p>
+
+<p>信号量同步的例子：</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="n">semaphore</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Semaphore</span><span class="p">()</span>
+</span><span class="line"><span class="n">semaphore</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+</span><span class="line"> <span class="c"># 使用共享资源</span>
+</span><span class="line"><span class="o">...</span>
+</span><span class="line"><span class="n">semaphore</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>让我们看一下信号量同步在Python内部是如何实现的。构造器使用参数value来表示计数器的初始值，默认值为1。一个条件锁实例用于保护计数器，同时当信号量被释放时通知其他线程。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">class</span> <span class="nc">_Semaphore</span><span class="p">(</span><span class="n">_Verbose</span><span class="p">):</span>
+</span><span class="line">    <span class="o">...</span>
+</span><span class="line">    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+</span><span class="line">        <span class="n">_Verbose</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">verbose</span><span class="p">)</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">__cond</span> <span class="o">=</span> <span class="n">Condition</span><span class="p">(</span><span class="n">Lock</span><span class="p">())</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">__value</span> <span class="o">=</span> <span class="n">value</span>
+</span><span class="line">        <span class="o">...</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>acquire()方法。如果信号量为0，线程被条件锁的wait()方法阻塞，直到被其他线程唤醒；如果计数器大于0，调用acquire()使计数器减1。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">def</span> <span class="nf">acquire</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">blocking</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+</span><span class="line">    <span class="n">rc</span> <span class="o">=</span> <span class="bp">False</span>
+</span><span class="line">    <span class="bp">self</span><span class="o">.</span><span class="n">__cond</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+</span><span class="line">    <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">__value</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+</span><span class="line">        <span class="o">...</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">__cond</span><span class="o">.</span><span class="n">wait</span><span class="p">()</span>
+</span><span class="line">    <span class="k">else</span><span class="p">:</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">__value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__value</span> <span class="o">-</span> <span class="mi">1</span>
+</span><span class="line">        <span class="n">rc</span> <span class="o">=</span> <span class="bp">True</span>
+</span><span class="line">    <span class="bp">self</span><span class="o">.</span><span class="n">__cond</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+</span><span class="line">    <span class="k">return</span> <span class="n">rc</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>信号量类的release()方法增加计数器的值并且唤醒其他线程。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">def</span> <span class="nf">release</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span class="line">    <span class="bp">self</span><span class="o">.</span><span class="n">__cond</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+</span><span class="line">    <span class="bp">self</span><span class="o">.</span><span class="n">__value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__value</span> <span class="o">+</span> <span class="mi">1</span>
+</span><span class="line">    <span class="bp">self</span><span class="o">.</span><span class="n">__cond</span><span class="o">.</span><span class="n">notify</span><span class="p">()</span>
+</span><span class="line">    <span class="bp">self</span><span class="o">.</span><span class="n">__cond</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>还有一个“有限”(bounded)信号量类，可以确保release()方法的调用次数不能超过给定的初始信号量数值(value参数)，下面是“有限”信号量类的Python代码：</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">class</span> <span class="nc">_BoundedSemaphore</span><span class="p">(</span><span class="n">_Semaphore</span><span class="p">):</span>
+</span><span class="line">    <span class="sd">&quot;&quot;&quot;检查release()的调用次数是否小于等于acquire()次数&quot;&quot;&quot;</span>
+</span><span class="line">    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+</span><span class="line">        <span class="n">_Semaphore</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">verbose</span><span class="p">)</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">_initial_value</span> <span class="o">=</span> <span class="n">value</span>
+</span><span class="line">
+</span><span class="line">    <span class="k">def</span> <span class="nf">release</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span class="line">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Semaphore__value</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_initial_value</span><span class="p">:</span>
+</span><span class="line">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">,</span> <span class="s">&quot;Semaphore released too many times&quot;</span>
+</span><span class="line">        <span class="k">return</span> <span class="n">_Semaphore</span><span class="o">.</span><span class="n">release</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>同样信号量(Semaphore)对象可以和“with”一起使用：</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="n">semaphore</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Semaphore</span><span class="p">()</span>
+</span><span class="line"><span class="k">with</span> <span class="n">semaphore</span><span class="p">:</span>
+</span><span class="line">  <span class="c"># 使用共享资源</span>
+</span><span class="line">  <span class="o">...</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<h2>事件（Event）</h2>
+<p>基于事件的同步是指：一个线程发送/传递事件，另外的线程等待事件的触发。
+让我们再来看看前面的生产者和消费者的例子，现在我们把它转换成使用事件同步而不是条件同步。完整的源码可以在threads/event.py里面找到。</p>
+
+<p>首先是生产者类，我们传入一个Event实例给构造器而不是Condition实例。一旦整数被添加进列表，事件(event)被设置和发送去唤醒消费者。注意事件(event)实例默认是被发送的。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+<span class="line-number">19</span>
+<span class="line-number">20</span>
+<span class="line-number">21</span>
+<span class="line-number">22</span>
+<span class="line-number">23</span>
+<span class="line-number">24</span>
+<span class="line-number">25</span>
+<span class="line-number">26</span>
+<span class="line-number">27</span>
+<span class="line-number">28</span>
+<span class="line-number">29</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">class</span> <span class="nc">Producer</span><span class="p">(</span><span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">):</span>
+</span><span class="line">  <span class="sd">&quot;&quot;&quot;</span>
+</span><span class="line"><span class="sd">  向列表中生产随机整数</span>
+</span><span class="line"><span class="sd">  &quot;&quot;&quot;</span>
+</span><span class="line">
+</span><span class="line">  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">integers</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+</span><span class="line">    <span class="sd">&quot;&quot;&quot;</span>
+</span><span class="line"><span class="sd">    构造器</span>
+</span><span class="line">
+</span><span class="line"><span class="sd">    @param integers 整数列表</span>
+</span><span class="line"><span class="sd">    @param event 事件同步对象</span>
+</span><span class="line"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span class="line">    <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</span><span class="line">    <span class="bp">self</span><span class="o">.</span><span class="n">integers</span> <span class="o">=</span> <span class="n">integers</span>
+</span><span class="line">    <span class="bp">self</span><span class="o">.</span><span class="n">event</span> <span class="o">=</span> <span class="n">event</span>
+</span><span class="line">
+</span><span class="line">  <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span class="line">    <span class="sd">&quot;&quot;&quot;</span>
+</span><span class="line"><span class="sd">    实现Thread的run方法。在随机时间向列表中添加一个随机整数</span>
+</span><span class="line"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span class="line">    <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+</span><span class="line">      <span class="n">integer</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">256</span><span class="p">)</span>
+</span><span class="line">      <span class="bp">self</span><span class="o">.</span><span class="n">integers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">integer</span><span class="p">)</span>
+</span><span class="line">      <span class="k">print</span> <span class="s">&#39;</span><span class="si">%d</span><span class="s"> appended to list by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">integer</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+</span><span class="line">      <span class="k">print</span> <span class="s">&#39;event set by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+</span><span class="line">      <span class="bp">self</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">set</span><span class="p">()</span>		<span class="c">#设置事件	</span>
+</span><span class="line">      <span class="bp">self</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>	<span class="c">#发送事件</span>
+</span><span class="line">      <span class="k">print</span> <span class="s">&#39;event cleared by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+</span><span class="line">      <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>同样我们传入一个Event实例给消费者的构造器，消费者阻塞在wait()方法，等待事件被触发，即有可供消费的整数。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+<span class="line-number">19</span>
+<span class="line-number">20</span>
+<span class="line-number">21</span>
+<span class="line-number">22</span>
+<span class="line-number">23</span>
+<span class="line-number">24</span>
+<span class="line-number">25</span>
+<span class="line-number">26</span>
+<span class="line-number">27</span>
+<span class="line-number">28</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">class</span> <span class="nc">Consumer</span><span class="p">(</span><span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">):</span>
+</span><span class="line">  <span class="sd">&quot;&quot;&quot;</span>
+</span><span class="line"><span class="sd">   从列表中消费整数</span>
+</span><span class="line"><span class="sd">  &quot;&quot;&quot;</span>
+</span><span class="line">
+</span><span class="line">  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">integers</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+</span><span class="line">    <span class="sd">&quot;&quot;&quot;</span>
+</span><span class="line"><span class="sd">    构造器</span>
+</span><span class="line">
+</span><span class="line"><span class="sd">    @param integers 整数列表</span>
+</span><span class="line"><span class="sd">    @param event 事件同步对象</span>
+</span><span class="line"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span class="line">    <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</span><span class="line">    <span class="bp">self</span><span class="o">.</span><span class="n">integers</span> <span class="o">=</span> <span class="n">integers</span>
+</span><span class="line">    <span class="bp">self</span><span class="o">.</span><span class="n">event</span> <span class="o">=</span> <span class="n">event</span>
+</span><span class="line">
+</span><span class="line">  <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span class="line">    <span class="sd">&quot;&quot;&quot;</span>
+</span><span class="line"><span class="sd">    实现Thread的run()方法，从列表中消费整数</span>
+</span><span class="line"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span class="line">    <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+</span><span class="line">      <span class="bp">self</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">wait</span><span class="p">()</span>	<span class="c">#等待事件被触发</span>
+</span><span class="line">      <span class="k">try</span><span class="p">:</span>
+</span><span class="line">        <span class="n">integer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">integers</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+</span><span class="line">        <span class="k">print</span> <span class="s">&#39;</span><span class="si">%d</span><span class="s"> popped from list by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">integer</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+</span><span class="line">      <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+</span><span class="line">        <span class="c"># catch pop on empty list</span>
+</span><span class="line">        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p><img src="http://www.laurentluce.com/images/blog/threads/event.png" /></p>
+
+<p>下面是程序的输出，Thread-1添加124到整数列表中，然后设置事件并且唤醒消费者。消费者从wait()方法中唤醒，在列表中获取到整数。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+</pre></td><td class="code"><pre><code class="sh"><span class="line"><span class="nv">$ </span>python event.py
+</span><span class="line"><span class="m">124</span> appended to list by Thread-1
+</span><span class="line">event <span class="nb">set </span>by Thread-1
+</span><span class="line">event cleared by Thread-1
+</span><span class="line"><span class="m">124</span> popped from list by Thread-2
+</span><span class="line"><span class="m">223</span> appended to list by Thread-1
+</span><span class="line">event <span class="nb">set </span>by Thread-1
+</span><span class="line">event cleared by Thread-1
+</span><span class="line"><span class="m">223</span> popped from list by Thread-2
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>事件锁的Python内部实现，首先是Event锁的构造器。构造器中创建了一个条件（Condition）锁，来保护事件标志（event flag）,同事唤醒其他线程当事件被设置时。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">class</span> <span class="nc">_Event</span><span class="p">(</span><span class="n">_Verbose</span><span class="p">):</span>
+</span><span class="line">    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+</span><span class="line">        <span class="n">_Verbose</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">verbose</span><span class="p">)</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">__cond</span> <span class="o">=</span> <span class="n">Condition</span><span class="p">(</span><span class="n">Lock</span><span class="p">())</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">__flag</span> <span class="o">=</span> <span class="bp">False</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>接下来是set()方法，它设置事件标志为True，并且唤醒其他线程。条件锁对象保护程序修改事件标志状态的关键部分。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">def</span> <span class="nf">set</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span class="line">    <span class="bp">self</span><span class="o">.</span><span class="n">__cond</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+</span><span class="line">    <span class="k">try</span><span class="p">:</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">__flag</span> <span class="o">=</span> <span class="bp">True</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">__cond</span><span class="o">.</span><span class="n">notify_all</span><span class="p">()</span>
+</span><span class="line">    <span class="k">finally</span><span class="p">:</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">__cond</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>而clear()方法正好相反，它设置时间标志为False。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">def</span> <span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span class="line">    <span class="bp">self</span><span class="o">.</span><span class="n">__cond</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+</span><span class="line">    <span class="k">try</span><span class="p">:</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">__flag</span> <span class="o">=</span> <span class="bp">False</span>
+</span><span class="line">    <span class="k">finally</span><span class="p">:</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">__cond</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>最后，wait()方法将阻塞直到调用了set()方法，当事件标志为True时，wait()方法就什么也不做。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">def</span> <span class="nf">wait</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+</span><span class="line">    <span class="bp">self</span><span class="o">.</span><span class="n">__cond</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+</span><span class="line">    <span class="k">try</span><span class="p">:</span>
+</span><span class="line">        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">__flag</span><span class="p">:</span>	<span class="c">#如果flag不为真</span>
+</span><span class="line">            <span class="bp">self</span><span class="o">.</span><span class="n">__cond</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">timeout</span><span class="p">)</span>
+</span><span class="line">    <span class="k">finally</span><span class="p">:</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">__cond</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<h2>队列（Queue）</h2>
+<p>队列是一个非常好的线程同步机制，使用队列我们不用关心锁，队列会为我们处理锁的问题。
+队列(Queue)有以下4个用户感兴趣的方法：</p>
+<ul>
+<li><b>put:</b> 向队列中添加一个项；</li>
+<li><b>get:</b> 从队列中删除并返回一个项；</li>
+<li><b>task_done:</b> 当某一项任务完成时调用；</li>
+<li><b>join:</b> 阻塞知道所有的项目都被处理完。</li>
+</ul>
+
+<p>下面我们将上面的生产者/消费者的例子转换成使用队列。源代码可以在threads/queue.py中找到。</p>
+
+<p>首先是生产者类，我们不需要传入一个整数列表，因为我们使用队列就可以存储生成的整数。生产者线程在一个无限循环中生成整数并将生成的整数添加到队列中。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+<span class="line-number">19</span>
+<span class="line-number">20</span>
+<span class="line-number">21</span>
+<span class="line-number">22</span>
+<span class="line-number">23</span>
+<span class="line-number">24</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">class</span> <span class="nc">Producer</span><span class="p">(</span><span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">):</span>
+</span><span class="line">  <span class="sd">&quot;&quot;&quot;</span>
+</span><span class="line"><span class="sd">  向队列中生产随机整数</span>
+</span><span class="line"><span class="sd">  &quot;&quot;&quot;</span>
+</span><span class="line">
+</span><span class="line">  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="p">):</span>
+</span><span class="line">    <span class="sd">&quot;&quot;&quot;</span>
+</span><span class="line"><span class="sd">    构造器</span>
+</span><span class="line">
+</span><span class="line"><span class="sd">    @param integers 整数列表	#译注：不需要这个参数</span>
+</span><span class="line"><span class="sd">    @param queue 队列同步对象</span>
+</span><span class="line"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span class="line">    <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</span><span class="line">    <span class="bp">self</span><span class="o">.</span><span class="n">queue</span> <span class="o">=</span> <span class="n">queue</span>
+</span><span class="line">
+</span><span class="line">  <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span class="line">    <span class="sd">&quot;&quot;&quot;</span>
+</span><span class="line"><span class="sd">    实现Thread的run方法。在随机时间向队列中添加一个随机整数</span>
+</span><span class="line"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span class="line">    <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+</span><span class="line">      <span class="n">integer</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">256</span><span class="p">)</span>
+</span><span class="line">      <span class="bp">self</span><span class="o">.</span><span class="n">queue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">integer</span><span class="p">)</span>	<span class="c">#将生成的整数添加到队列</span>
+</span><span class="line">      <span class="k">print</span> <span class="s">&#39;</span><span class="si">%d</span><span class="s"> put to queue by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">integer</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+</span><span class="line">      <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>下面是消费者类。线程从队列中获取整数，并且在任务完成时调用task_done()方法。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+<span class="line-number">19</span>
+<span class="line-number">20</span>
+<span class="line-number">21</span>
+<span class="line-number">22</span>
+<span class="line-number">23</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">class</span> <span class="nc">Consumer</span><span class="p">(</span><span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">):</span>
+</span><span class="line">  <span class="sd">&quot;&quot;&quot;</span>
+</span><span class="line"><span class="sd">  从队列中消费整数</span>
+</span><span class="line"><span class="sd">  &quot;&quot;&quot;</span>
+</span><span class="line">
+</span><span class="line">  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="p">):</span>
+</span><span class="line">    <span class="sd">&quot;&quot;&quot;</span>
+</span><span class="line"><span class="sd">    构造器</span>
+</span><span class="line">
+</span><span class="line"><span class="sd">    @param integers 整数列表	#译注：不需要这个参数</span>
+</span><span class="line"><span class="sd">    @param queue 队列同步对象</span>
+</span><span class="line"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span class="line">    <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</span><span class="line">    <span class="bp">self</span><span class="o">.</span><span class="n">queue</span> <span class="o">=</span> <span class="n">queue</span>
+</span><span class="line">
+</span><span class="line">  <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span class="line">    <span class="sd">&quot;&quot;&quot;</span>
+</span><span class="line"><span class="sd">    实现Thread的run()方法，从队列中消费整数</span>
+</span><span class="line"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span class="line">    <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+</span><span class="line">      <span class="n">integer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">queue</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+</span><span class="line">      <span class="k">print</span> <span class="s">&#39;</span><span class="si">%d</span><span class="s"> popped from list by </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">integer</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+</span><span class="line">      <span class="bp">self</span><span class="o">.</span><span class="n">queue</span><span class="o">.</span><span class="n">task_done</span><span class="p">()</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>以下是程序的输出：</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+</pre></td><td class="code"><pre><code class="bash"><span class="line"><span class="nv">$ </span>python queue.py
+</span><span class="line"><span class="m">61</span> put to queue by Thread-1
+</span><span class="line"><span class="m">61</span> popped from list by Thread-2
+</span><span class="line"><span class="m">6</span> put to queue by Thread-1
+</span><span class="line"><span class="m">6</span> popped from list by Thread-2
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>队列同步的最大好处就是队列帮我们处理了锁。现在让我们去看看在Python内部是如何实现队列同步机制的。</p>
+
+<p>队列（Queue）构造器创建一个锁，保护队列元素的添加和删除操作。同时创建了一些条件锁对象处理队列事件，比如队列不空事件（削除get()的阻塞），队列不满事件（削除put()的阻塞）和所有项目都被处理完事件（削除join()的阻塞）。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">class</span> <span class="nc">Queue</span><span class="p">:</span>
+</span><span class="line">    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">maxsize</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+</span><span class="line">        <span class="o">...</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">mutex</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">not_empty</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Condition</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mutex</span><span class="p">)</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">not_full</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Condition</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mutex</span><span class="p">)</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">all_tasks_done</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Condition</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mutex</span><span class="p">)</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">unfinished_tasks</span> <span class="o">=</span> <span class="mi">0</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>put()方法向队列中添加一个项，或者阻塞如果队列已满。这时队列非空，它唤醒阻塞在get()方法中的线程。更多关于Condition锁的内容请查看上面的讲解。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">def</span> <span class="nf">put</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">,</span> <span class="n">block</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+</span><span class="line">    <span class="o">...</span>
+</span><span class="line">    <span class="bp">self</span><span class="o">.</span><span class="n">not_full</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+</span><span class="line">    <span class="k">try</span><span class="p">:</span>
+</span><span class="line">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">maxsize</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+</span><span class="line">            <span class="o">...</span>
+</span><span class="line">            <span class="k">elif</span> <span class="n">timeout</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+</span><span class="line">                <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">_qsize</span><span class="p">()</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">maxsize</span><span class="p">:</span>
+</span><span class="line">                    <span class="bp">self</span><span class="o">.</span><span class="n">not_full</span><span class="o">.</span><span class="n">wait</span><span class="p">()</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">_put</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">unfinished_tasks</span> <span class="o">+=</span> <span class="mi">1</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">not_empty</span><span class="o">.</span><span class="n">notify</span><span class="p">()</span>
+</span><span class="line">    <span class="k">finally</span><span class="p">:</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">not_full</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>get()方法从队列中获得并删除一个项，或者阻塞当队列为空时。这时队列不满，他唤醒阻塞在put()方法中的线程。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">block</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+</span><span class="line">    <span class="o">...</span>
+</span><span class="line">    <span class="bp">self</span><span class="o">.</span><span class="n">not_empty</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+</span><span class="line">    <span class="k">try</span><span class="p">:</span>
+</span><span class="line">        <span class="o">...</span>
+</span><span class="line">        <span class="k">elif</span> <span class="n">timeout</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+</span><span class="line">            <span class="k">while</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_qsize</span><span class="p">():</span>
+</span><span class="line">                <span class="bp">self</span><span class="o">.</span><span class="n">not_empty</span><span class="o">.</span><span class="n">wait</span><span class="p">()</span>
+</span><span class="line">        <span class="n">item</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get</span><span class="p">()</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">not_full</span><span class="o">.</span><span class="n">notify</span><span class="p">()</span>
+</span><span class="line">        <span class="k">return</span> <span class="n">item</span>
+</span><span class="line">    <span class="k">finally</span><span class="p">:</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">not_empty</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>当调用task_done()方法时，未完成任务的数量减1。如果未完成任务的数量为0，线程等待队列完成join()方法。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+<span class="line-number">19</span>
+</pre></td><td class="code"><pre><code class="python"><span class="line"><span class="k">def</span> <span class="nf">task_done</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span class="line">    <span class="bp">self</span><span class="o">.</span><span class="n">all_tasks_done</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+</span><span class="line">    <span class="k">try</span><span class="p">:</span>
+</span><span class="line">        <span class="n">unfinished</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unfinished_tasks</span> <span class="o">-</span> <span class="mi">1</span>
+</span><span class="line">        <span class="k">if</span> <span class="n">unfinished</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+</span><span class="line">            <span class="k">if</span> <span class="n">unfinished</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+</span><span class="line">                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;task_done() called too many times&#39;</span><span class="p">)</span>
+</span><span class="line">            <span class="bp">self</span><span class="o">.</span><span class="n">all_tasks_done</span><span class="o">.</span><span class="n">notify_all</span><span class="p">()</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">unfinished_tasks</span> <span class="o">=</span> <span class="n">unfinished</span>
+</span><span class="line">    <span class="k">finally</span><span class="p">:</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">all_tasks_done</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+</span><span class="line">
+</span><span class="line"><span class="k">def</span> <span class="nf">join</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span class="line">    <span class="bp">self</span><span class="o">.</span><span class="n">all_tasks_done</span><span class="o">.</span><span class="n">acquire</span><span class="p">()</span>
+</span><span class="line">    <span class="k">try</span><span class="p">:</span>
+</span><span class="line">        <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">unfinished_tasks</span><span class="p">:</span>
+</span><span class="line">            <span class="bp">self</span><span class="o">.</span><span class="n">all_tasks_done</span><span class="o">.</span><span class="n">wait</span><span class="p">()</span>
+</span><span class="line">    <span class="k">finally</span><span class="p">:</span>
+</span><span class="line">        <span class="bp">self</span><span class="o">.</span><span class="n">all_tasks_done</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p><img src="http://www.laurentluce.com/images/blog/threads/queue.png" /></p>
+
+<p>本文到此结束，希望您喜欢这篇文章。欢迎您的留言和反馈。</p>
+
+<p><code>---EOF---</code></p>
+
+</div>
+
+
+  <footer class="post-footer">
+    <div class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">yoyzhou</span></span>
+ under 
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/lock/'>lock</a>, <a class='category' href='/blog/categories/python/'>python</a>, <a class='category' href='/blog/categories/queue/'>queue</a>, <a class='category' href='/blog/categories/threading/'>threading</a>
+  
+</span>
+
+
+    </div>
+    
+      <div class="sharing">
+  
+  
+  
+</div>
+
+    
+    <div class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2012/08/12/install-python-setuptools-slash-distribute-for-both-python2-and-python3/" title="Previous Post: Install Python Setuptools/Distribute for Python 2.x and Python 3.x">&laquo; Install Python Setuptools/Distribute for Python 2.x and Python 3.x</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2013/03/18/sina-weibo-login-simulator-in-python/" title="Next Post: Python模拟登录新浪微薄（使用RSA加密方式和Cookies文件）">Python模拟登录新浪微薄（使用RSA加密方式和Cookies文件） &raquo;</a>
+      
+    </div>
+  </footer>
+</article>
+
+  <section>
+    <h3>Comments</h3>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+  </div>
+</div>
+
+  <aside id="secondary">
+  
+    
+<section class="widget">
+	<h3 class="widget-title">About Me</h3>
+	<p><code style="font-size: 14px;">Writing is the best way of learning</code></p>
+</section>
+<section class="widget">
+	<h3 class="widget-title">Recent Posts</h3>
+	<ul class="widget-list">
+		
+     	<li>
+      	  <a href="/blog/2013/06/04/mahout-clustering-with-hadoop/">在Hadoop上运行Mahout KMeans聚类分析</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/26/clustering-with-mahout/">Mahout与聚类分析</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/13/hadoop-write-ur-own-rawcomparator/">使用RawComparator加速Hadoop程序</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/10/hadoop-serialization-and-writable-object-2/">Hadoop序列化与Writable接口(二)</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/09/hadoop-serialization-and-writable-object-1/">Hadoop序列化与Writable接口(一)</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/29/viz-following-networks-of-weibo-celebrities/">微博名人关注网络的社会网络分析</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/29/a-kinda-betweenness-centrality-algorithm/">A Kinda Betweenness Centrality Algorithm</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/28/studying-notes-a-set-of-measures-of-centrality-based-on-betweenness/">A Set of Measures of Centrality Based on Betweenness</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/21/adding-filter-in-hadoop-mapper-class/">Adding Filter in Hadoop Mapper Class</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/14/steps-of-programming-hadoop-with-eclipse/">使用Eclipse开发MapReduce程序的步骤</a>
+      	</li>
+    	
+	</ul>
+</section>
+
+<section class="widget">
+  <h3>GitHub Repos</h3>
+  <ul id="gh_repos" class="widget-list">
+    <li class="loading">Status updating&#8230;</li>
+  </ul>
+  
+  <a href="https://github.com/yoyzhou">@yoyzhou</a> on GitHub
+  
+  <script type="text/javascript">
+    $.domReady(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'yoyzhou',
+            count: 0,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+
+
+
+  
+</aside>
+
+
+      	</div>
+    </div>
+  </div>
+  <footer id="footer">
+  	<div class="container">
+	Copyright &copy; 2014 - yoyzhou -
+  <span class="credit">Powered by <a rel="nofollow" href="http://octopress.org">Octopress</a> on <a rel="nofollow" href="http://pages.github.com/">GitHubPages</a>
+  </span>
+  - <span class="credit">Theme by <a rel="nofollow" href="http://pagecho.com">Cho</a></span>
+
+
+</div>
+
+  </footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'yoyzhou';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://yoyzhou.github.io/blog/2013/02/28/python-threads-synchronization-locks/';
+        var disqus_url = 'http://yoyzhou.github.io/blog/2013/02/28/python-threads-synchronization-locks/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+
+
+
+
+</body>
+</html>

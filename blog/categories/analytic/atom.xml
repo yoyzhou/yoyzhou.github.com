@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: analytic | Zhou's Blog]]></title>
+  <link href="http://yoyzhou.github.io/blog/categories/analytic/atom.xml" rel="self"/>
+  <link href="http://yoyzhou.github.io/"/>
+  <updated>2014-11-02T01:05:30-07:00</updated>
+  <id>http://yoyzhou.github.io/</id>
+  <author>
+    <name><![CDATA[yoyzhou]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Adding Filter in Hadoop Mapper Class]]></title>
+    <link href="http://yoyzhou.github.io/blog/2013/04/21/adding-filter-in-hadoop-mapper-class/"/>
+    <updated>2013-04-21T15:08:00-07:00</updated>
+    <id>http://yoyzhou.github.io/blog/2013/04/21/adding-filter-in-hadoop-mapper-class</id>
+    <content type="html"><![CDATA[<p>There is my solutions to tackle the disk spaces shortage problem I described in the <a href="/blog/2013/04/20/my-first-luckily-and-sad-hadoop-results/">previous post</a>. The core principle of the solution is to reduce the number of output records at Mapper stage; the method I used is <strong>Filter</strong>, adding a filter, which I will explain later, to decrease the output records of Mapper, which in turn significantly decrease the Mapper’s Spill records, and fundamentally decrease the disk space usages. After applying the filter, with 30,661 records. some 200MB data set as inputs, the total Spill Records is 25,471,725,  and it <strong>only</strong> takes about 509MB disk spaces!</p>
+
+<h4 id="followed-filter">Followed Filter</h4>
+
+<p>And now I’m going to reveal what’s kinda Filter it looks like, and how did I accomplish that filter.
+The true face of the <strong>FILTER</strong> is called  <strong>Followed Filter</strong>, it filters users from computing co-followed combinations if their followed number does not satisfy a certain number, called <strong>Followed Threshold</strong>. </p>
+
+<p>Followed Filter is used to reduce the co-followed combinations at Mapper stage. Say we set the followed threshold to 100, meaning users who doesn’t own 100 fans(be followed by 100 other users) will be ignored during co-followed combinations computing stage(to get the actual number of the threshold we need analyze statistics of user’s followed number of our data set).</p>
+
+<h4 id="reason">Reason</h4>
+
+<p>Choosing followed filter is reasonable because how many user follows is a metric of user’s popularity/famousness.</p>
+
+<h4 id="how">HOW</h4>
+
+<p>In order to accomplish it, we need:</p>
+
+<p><strong>First</strong>, counting user’s followed number among our data set, which needs a new MapReduce Job;</p>
+
+<p><strong>Second</strong>, choosing a followed threshold after analyze the statistics perspective of followed number data set got in first step;</p>
+
+<p><strong>Third</strong>, using DistrbutedCache of Hadoop to cache users who satisfy the filter to all Mappers;</p>
+
+<p><strong>Forth</strong>, adding followed filter to Mapper class, only users satisfy filter condition will be passed into co-followed combination computing phrase;</p>
+
+<p><strong>Fifth</strong>, adding co-followed filter/threshold in Reducer side if necessary.</p>
+
+<h4 id="outcomes">Outcomes</h4>
+<p>Here is the Hadoop Job Summary, after applying the followed filter with followed threshold of 1000, that means only users who are followed by 1000 users will have the opportunity to co-followed combinations, compared with the Job Summary in my previous post, most all metrics have significant improvements:</p>
+
+<table>
+  <tbody>
+    <tr>
+      <td>Counter</td>
+      <td>Map</td>
+      <td>Reduce</td>
+      <td>Total</td>
+    </tr>
+    <tr>
+      <td>Bytes Written</td>
+      <td>0</td>
+      <td>1,798,185</td>
+      <td>1,798,185</td>
+    </tr>
+    <tr>
+      <td>Bytes Read</td>
+      <td>203,401,876</td>
+      <td>0</td>
+      <td>203,401,876</td>
+    </tr>
+    <tr>
+      <td>FILE_BYTES_READ</td>
+      <td>405,219,906</td>
+      <td>52,107,486</td>
+      <td>457,327,392</td>
+    </tr>
+    <tr>
+      <td><strong><em>HDFS_BYTES_READ</em></strong></td>
+      <td><strong><em>203,402,751</em></strong></td>
+      <td>0</td>
+      <td>203,402,751</td>
+    </tr>
+    <tr>
+      <td><strong><em>FILE_BYTES_WRITTEN</em></strong></td>
+      <td>457,707,759</td>
+      <td>52,161,704</td>
+      <td><strong><em>509,869,463</em></strong></td>
+    </tr>
+    <tr>
+      <td>HDFS_BYTES_WRITTEN</td>
+      <td>0</td>
+      <td>1,798,185</td>
+      <td>1,798,185</td>
+    </tr>
+    <tr>
+      <td>Reduce input groups</td>
+      <td>0</td>
+      <td>373,680</td>
+      <td>373,680</td>
+    </tr>
+    <tr>
+      <td>Map output materialized bytes</td>
+      <td>52,107,522</td>
+      <td>0</td>
+      <td>52,107,522</td>
+    </tr>
+    <tr>
+      <td>Combine output records</td>
+      <td>22,202,756</td>
+      <td>0</td>
+      <td>22,202,756</td>
+    </tr>
+    <tr>
+      <td><strong><em>Map input records</em></strong></td>
+      <td><strong><em>30,661</em></strong></td>
+      <td>0</td>
+      <td>30,661</td>
+    </tr>
+    <tr>
+      <td>Reduce shuffle bytes</td>
+      <td>0</td>
+      <td>52,107,522</td>
+      <td>52,107,522</td>
+    </tr>
+    <tr>
+      <td>Physical memory (bytes) snapshot</td>
+      <td>2,646,589,440</td>
+      <td>116,408,320</td>
+      <td>2,762,997,760</td>
+    </tr>
+    <tr>
+      <td><strong><em>Reduce output records</em></strong></td>
+      <td>0</td>
+      <td><strong><em>373,680</em></strong></td>
+      <td>373,680</td>
+    </tr>
+    <tr>
+      <td><strong><em>Spilled Records</em></strong></td>
+      <td><strong><em>22,866,351</em></strong></td>
+      <td>2,605,374</td>
+      <td>25,471,725</td>
+    </tr>
+    <tr>
+      <td>Map output bytes</td>
+      <td>2,115,139,050</td>
+      <td>0</td>
+      <td>2,115,139,050</td>
+    </tr>
+    <tr>
+      <td>Total committed heap usage (bytes)</td>
+      <td>2,813,853,696</td>
+      <td>84,738,048</td>
+      <td>2,898,591,744</td>
+    </tr>
+    <tr>
+      <td>CPU time spent (ms)</td>
+      <td>5,766,680</td>
+      <td>11,210</td>
+      <td>5,777,890</td>
+    </tr>
+    <tr>
+      <td>Virtual memory (bytes) snapshot</td>
+      <td>9,600,737,280</td>
+      <td>1,375,002,624</td>
+      <td>10,975,739,904</td>
+    </tr>
+    <tr>
+      <td>SPLIT_RAW_BYTES</td>
+      <td>875</td>
+      <td>0</td>
+      <td>875</td>
+    </tr>
+    <tr>
+      <td><strong><em>Map output records</em></strong></td>
+      <td><strong><em>117,507,725</em></strong></td>
+      <td>0</td>
+      <td>117,507,725</td>
+    </tr>
+    <tr>
+      <td>Combine input records</td>
+      <td>137,105,107</td>
+      <td>0</td>
+      <td>137,105,107</td>
+    </tr>
+    <tr>
+      <td>Reduce input records</td>
+      <td>0</td>
+      <td>2,605,374</td>
+      <td>2,605,374</td>
+    </tr>
+  </tbody>
+</table>
+
+<h4 id="ps">P.S.</h4>
+<p>Frankly Speaking, chances are <strong>I am on the wrong way to Hadoop Programming</strong>, since I’m palying <code>Pesudo Distribution Hadoop</code> with my personal computer, which has 4 CUPs and 4G RAM, in real Hadoop Cluster disk spaces might never be a trouble, and all the tuning work I have done may turn into meaningless efforts. Before the Followed Filter, I also did some Hadoop tuning like customed Writable class, RawComparator, block size and io.sort.mb, etc.</p>
+
+<p><code>---EOF---</code></p>
+
+]]></content>
+  </entry>
+  
+</feed>

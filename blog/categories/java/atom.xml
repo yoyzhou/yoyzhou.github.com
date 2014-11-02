@@ -1,0 +1,843 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: java | Zhou's Blog]]></title>
+  <link href="http://yoyzhou.github.io/blog/categories/java/atom.xml" rel="self"/>
+  <link href="http://yoyzhou.github.io/"/>
+  <updated>2014-11-02T01:05:30-07:00</updated>
+  <id>http://yoyzhou.github.io/</id>
+  <author>
+    <name><![CDATA[yoyzhou]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[使用RawComparator加速Hadoop程序]]></title>
+    <link href="http://yoyzhou.github.io/blog/2013/05/13/hadoop-write-ur-own-rawcomparator/"/>
+    <updated>2013-05-13T23:06:00-07:00</updated>
+    <id>http://yoyzhou.github.io/blog/2013/05/13/hadoop-write-ur-own-rawcomparator</id>
+    <content type="html"><![CDATA[<p>在前面两篇文章<a href="/blog/2013/05/09/hadoop-serialization-and-writable-object-1/">[1]</a><a href="/blog/2013/05/10/hadoop-serialization-and-writable-object-2/">[2]</a>中我们介绍了Hadoop序列化的相关知识，包括Writable接口与Writable对象以及如何编写定制的Writable类，深入的分析了Writable类序列化之后占用的字节空间以及字节序列的构成。我们指出Hadoop序列化是Hadoop的核心部分之一，了解和分析Writable类的相关知识有助于我们理解Hadoop序列化的工作方式以及选择合适的Writable类作为MapReduce的键和值，以达到高效利用磁盘空间以及<strong>快速读写对象</strong>。因为在数据密集型计算中，在网络数据的传输是影响计算效率的一个重要因素，选择合适的Writable对象不但减小了磁盘空间，而且更重要的是其减小了需要在网络中传输的数据量，从而加快了程序的速度。</p>
+
+<p>在本文中我们介绍另外一种方法加快程序的速度，这就是<strong>使用RawComparator加速Hadoop程序</strong>。我们知道作为键（Key）的Writable类必须实现WritableComparable接口，以实现对键进行排序的功能。Writable类进行比较时，Hadoop的默认方式是先将序列化后的对象字节流反序列化为对象，然后再进行比较（compareTo方法），比较过程需要一个反序列化的步骤。RawComparator的做法是<strong>不进行反序列化，而是在字节流层面进行比较</strong>，这样就省下了反序列化过程，从而加速程序的运行。Hadoop自身提供的IntWritable、LongWritabe等类已经实现了这种优化，使这些Writable类作为键进行比较时，直接使用序列化的字节数组进行比较大小，而不用进行反序列化。</p>
+
+<h4 id="rawcomparator">RawComparator的实现</h4>
+
+<p>在Hadoop中编写Writable的RawComparator一般不直接继承RawComparator类，而是继承RawComparator的子类<strong>WritableComparator</strong>，因为WritableComparator类为我们提供了一些有用的工具方法，比如从字节数组中读取int、long和vlong等值。下面是上两篇文章中我们定制的MyWritable类的RawComparator实现，定制的MyWritable由两个VLongWritable对组成，为了添加RawComparator功能，Writable类必须实现WritableComparable接口，这里不再展示实现了WritableComparable接口的MyWritableComparable类的全部内容，而只是MyWritableComparable类中Comparator的实现，完整的代码可以在<a href="https://github.com/yoyzhou/weibo_analysis">github</a>中找到。</p>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="err">…</span><span class="c1">//omitted for conciseness</span>
+</span><span class='line'><span class="cm">/**</span>
+</span><span class='line'><span class="cm"> * A RawComparator that compares serialized VlongWritable Pair</span>
+</span><span class='line'><span class="cm"> * compare method decode long value from serialized byte array one by one</span>
+</span><span class='line'><span class="cm"> *</span>
+</span><span class='line'><span class="cm"> * @author yoyzhou</span>
+</span><span class='line'><span class="cm"> *</span>
+</span><span class='line'><span class="cm"> * */</span>
+</span><span class='line'><span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">Comparator</span> <span class="kd">extends</span> <span class="n">WritableComparator</span> <span class="o">{&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span><span class="kd">public</span> <span class="nf">Comparator</span><span class="o">()</span> <span class="o">{</span>
+</span><span class='line'>	<span class="kd">super</span><span class="o">(</span><span class="n">MyWritableComparable</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="kd">public</span> <span class="kt">int</span> <span class="nf">compare</span><span class="o">(</span><span class="kt">byte</span><span class="o">[]</span> <span class="n">b1</span><span class="o">,</span> <span class="kt">int</span> <span class="n">s1</span><span class="o">,</span> <span class="kt">int</span> <span class="n">l1</span><span class="o">,</span> <span class="kt">byte</span><span class="o">[]</span> <span class="n">b2</span><span class="o">,</span> <span class="kt">int</span> <span class="n">s2</span><span class="o">,</span> <span class="kt">int</span> <span class="n">l2</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>
+</span><span class='line'>	<span class="kt">int</span> <span class="n">cmp</span> <span class="o">=</span> <span class="mi">1</span><span class="o">;</span>
+</span><span class='line'>	<span class="c1">//determine how many bytes the first VLong takes</span>
+</span><span class='line'>	<span class="kt">int</span> <span class="n">n1</span> <span class="o">=</span> <span class="n">WritableUtils</span><span class="o">.</span><span class="na">decodeVIntSize</span><span class="o">(</span><span class="n">b1</span><span class="o">[</span><span class="n">s1</span><span class="o">]);</span>
+</span><span class='line'>	<span class="kt">int</span> <span class="n">n2</span> <span class="o">=</span> <span class="n">WritableUtils</span><span class="o">.</span><span class="na">decodeVIntSize</span><span class="o">(</span><span class="n">b2</span><span class="o">[</span><span class="n">s2</span><span class="o">]);</span>
+</span><span class='line'>
+</span><span class='line'>	<span class="k">try</span> <span class="o">{</span>
+</span><span class='line'>		<span class="c1">//read value from VLongWritable byte array</span>
+</span><span class='line'>		<span class="kt">long</span> <span class="n">l11</span> <span class="o">=</span> <span class="n">readVLong</span><span class="o">(</span><span class="n">b1</span><span class="o">,</span> <span class="n">s1</span><span class="o">);</span>
+</span><span class='line'>		<span class="kt">long</span> <span class="n">l21</span> <span class="o">=</span> <span class="n">readVLong</span><span class="o">(</span><span class="n">b2</span><span class="o">,</span> <span class="n">s2</span><span class="o">);</span>
+</span><span class='line'>
+</span><span class='line'>		<span class="n">cmp</span> <span class="o">=</span> <span class="n">l11</span> <span class="o">&amp;</span><span class="n">gt</span><span class="o">;</span> <span class="n">l21</span> <span class="o">?</span> <span class="mi">1</span> <span class="o">:</span> <span class="o">(</span><span class="n">l11</span> <span class="o">==</span> <span class="n">l21</span> <span class="o">?</span> <span class="mi">0</span> <span class="o">:</span> <span class="o">-</span><span class="mi">1</span><span class="o">);</span>
+</span><span class='line'>		<span class="k">if</span> <span class="o">(</span><span class="n">cmp</span> <span class="o">!=</span> <span class="mi">0</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>
+</span><span class='line'>			<span class="k">return</span> <span class="n">cmp</span><span class="o">;</span>
+</span><span class='line'>
+</span><span class='line'>		<span class="o">}</span> <span class="k">else</span> <span class="o">{</span>
+</span><span class='line'>
+</span><span class='line'>			<span class="kt">long</span> <span class="n">l12</span> <span class="o">=</span> <span class="n">readVLong</span><span class="o">(</span><span class="n">b1</span><span class="o">,</span> <span class="n">s1</span> <span class="o">+</span> <span class="n">n1</span><span class="o">);</span>
+</span><span class='line'>			<span class="kt">long</span> <span class="n">l22</span> <span class="o">=</span> <span class="n">readVLong</span><span class="o">(</span><span class="n">b2</span><span class="o">,</span> <span class="n">s2</span> <span class="o">+</span> <span class="n">n2</span><span class="o">);</span>
+</span><span class='line'>			<span class="k">return</span> <span class="n">cmp</span> <span class="o">=</span> <span class="n">l12</span> <span class="o">&amp;</span><span class="n">gt</span><span class="o">;</span> <span class="n">l22</span> <span class="o">?</span> <span class="mi">1</span> <span class="o">:</span> <span class="o">(</span><span class="n">l12</span> <span class="o">==</span> <span class="n">l22</span> <span class="o">?</span> <span class="mi">0</span> <span class="o">:</span> <span class="o">-</span><span class="mi">1</span><span class="o">);</span>
+</span><span class='line'>		<span class="o">}</span>
+</span><span class='line'>	<span class="o">}</span> <span class="k">catch</span> <span class="o">(</span><span class="n">IOException</span> <span class="n">e</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>			<span class="k">throw</span> <span class="k">new</span> <span class="nf">RuntimeException</span><span class="o">(</span><span class="n">e</span><span class="o">);</span>
+</span><span class='line'>	<span class="o">}</span>
+</span><span class='line'><span class="o">}</span> <span class="o">}</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="kd">static</span> <span class="o">{</span> <span class="c1">// register this comparator</span>
+</span><span class='line'>	<span class="n">WritableComparator</span><span class="o">.</span><span class="na">define</span><span class="o">(</span><span class="n">MyWritableComparable</span><span class="o">.</span><span class="na">class</span><span class="o">,</span> <span class="k">new</span> <span class="nf">Comparator</span><span class="o">());</span>
+</span><span class='line'><span class="o">}&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="err">…</span>
+</span></code></pre></td></tr></table></div></figure></p>
+
+<p>通过上面的代码我们可以看到要实现Writable的RawComparator我们只需要重载WritableComparator的<code>public int compare(byte[] b1, int s1, int l1, byte[] b2, int s2, int l2)</code>方法。在我们的例子中，通过从VLongWritable对序列化后字节数组中一个一个的读取VLongWritable的值，再进行比较。</p>
+
+<p>当然编写完compare方法之后，不要忘了为Writable类注册编写的RawComparator类。</p>
+
+<h4 id="section">总结</h4>
+
+<p>为Writable类编写RawComparator必须对Writable本身序列化之后的字节数组有清晰的了解，知道如何从字节数组中读取Writable对象的值，而这正是我们前两篇关于<strong>Hadoop序列化和Writable接口</strong>的文章所要阐述的内容。</p>
+
+<p>通过以上的三篇文章，我们了解了Hadoop Writable接口，如何编写自己的Writable类，Writable类的字节序列长度与其构成，以及如何为Writable类编写RawComparator来为Hadoop提速。</p>
+
+<h4 id="section-1">参考资料</h4>
+
+<p>Tom White, Hadoop: The Definitive Guide, 3rd Edition </p>
+
+<p><a href="/blog/2013/05/09/hadoop-serialization-and-writable-object-1/">Hadoop序列化与Writable接口(一)</a></p>
+
+<p><a href="/blog/2013/05/10/hadoop-serialization-and-writable-object-2/">Hadoop序列化与Writable接口(二)</a></p>
+
+<p><code>--EOF--</code></p>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Hadoop序列化与Writable接口(二)]]></title>
+    <link href="http://yoyzhou.github.io/blog/2013/05/10/hadoop-serialization-and-writable-object-2/"/>
+    <updated>2013-05-10T20:56:00-07:00</updated>
+    <id>http://yoyzhou.github.io/blog/2013/05/10/hadoop-serialization-and-writable-object-2</id>
+    <content type="html"><![CDATA[<p>上一篇文章<a href="/blog/2013/05/09/hadoop-serialization-and-writable-object-1/">Hadoop序列化与Writable接口（一）</a>介绍了Hadoop序列化，Hadoop Writable接口以及如何定制自己的Writable类，在本文中我们继续Hadoop Writable类的介绍，这一次我们关注的是Writable实例序列化之后占用的字节长度，以及Writable实例序列化之后的字节序列的构成。</p>
+
+<h4 id="writable">为什么要考虑Writable类的字节长度</h4>
+
+<p>大数据程序还需要考虑序列化对象占用磁盘空间的大小吗？也许你会认为<strong>大数据</strong>不是就是数据量很大吗，那磁盘空间一定是足够足够的大，一个序列化对象仅仅占用几个到几十个字节的空间，相对磁盘空间来说，当然是不需要考虑太多；如果你的磁盘空间不够大，还是不要玩大数据的好。</p>
+
+<p>上面的观点没有什么问题，大数据应用自然需要足够的磁盘空间，但是能够尽量的考虑到不同Writable类占用磁盘空间的大小，高效的利用磁盘空间也未必就是没有必要的，选择适当的Writable类的另一个作用是<strong>通过减少Writable实例的字节数，可加快数据的读取和减少网络的数据传输。</strong></p>
+
+<h4 id="writable-1">Writable类占用的字节长度</h4>
+
+<p>下面的表格显示的是Hadoop对Java基本类型包装后相应的Writable类占用的字节长度：</p>
+
+<table>
+  <tbody>
+    <tr>
+      <td>Java基本类型</td>
+      <td>Writable实现</td>
+      <td>序列化后字节数 (bytes)</td>
+    </tr>
+    <tr>
+      <td>boolean</td>
+      <td>BooleanWritable</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>byte</td>
+      <td>ByteWritable</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>short</td>
+      <td>ShortWritable</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <td>int</td>
+      <td>IntWritable</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <td> </td>
+      <td>VIntWritable</td>
+      <td>1–5</td>
+    </tr>
+    <tr>
+      <td>float</td>
+      <td>FloatWritable</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <td>long</td>
+      <td>LongWritable</td>
+      <td>8</td>
+    </tr>
+    <tr>
+      <td> </td>
+      <td>VLongWritable</td>
+      <td>1–9</td>
+    </tr>
+    <tr>
+      <td>double</td>
+      <td>DoubleWritable</td>
+      <td>8</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>不同的Writable类序列化后占用的字数长度是不一样的，需要综合考虑应用中数据特征选择合适的类型。对于整数类型有两种Writable类型可以选择，一种是定长（fixed-length）Writable类型,IntWritable和LongWritable；另一种是变长（variable-length）Writable类型，VIntWritable和VLongWritable。定长类型顾名思义使用固定长度的字节数表示，比如一个IntWritable类型使用4个长度的字节表示一个int；变长类型则根据数值的大小使用相应的字节长度表示，当数值在-112～127之间时使用1个字节表示，在-112～127范围之外的数值使用头一个字节表示该数值的正负符号以及字节长度（zero-compressed encoded integer）。</p>
+
+<p>定长的Writable类型适合数值均匀分布的情形，而变长的Writable类型适合数值分布不均匀的情形，一般情况下变长的Writable类型更节省空间，因为大多数情况下数值是不均匀的，对于整数类型的Writable选择，我建议：</p>
+
+<blockquote>
+  <p>1. 除非对数据的均匀分布很有把握，否则使用变长Writable类型</p>
+</blockquote>
+
+<blockquote>
+  <p>2. 除非数据的取值区间确定在int范围之内，否则为了程序的可扩展性，请选择VLongWritable类型</p>
+</blockquote>
+
+<h4 id="writable-2">整型Writable的字节序列</h4>
+
+<p>下面将以实例的方式演示Hadoop整型Writable对象占用的字节长度以及Writable对象序列化之后字节序列的结构，特别是变长整型Writable实例，请看下面的代码和程序输出：</p>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+<span class='line-number'>52</span>
+<span class='line-number'>53</span>
+<span class='line-number'>54</span>
+<span class='line-number'>55</span>
+<span class='line-number'>56</span>
+<span class='line-number'>57</span>
+<span class='line-number'>58</span>
+<span class='line-number'>59</span>
+<span class='line-number'>60</span>
+<span class='line-number'>61</span>
+<span class='line-number'>62</span>
+<span class='line-number'>63</span>
+<span class='line-number'>64</span>
+<span class='line-number'>65</span>
+<span class='line-number'>66</span>
+<span class='line-number'>67</span>
+<span class='line-number'>68</span>
+<span class='line-number'>69</span>
+<span class='line-number'>70</span>
+<span class='line-number'>71</span>
+<span class='line-number'>72</span>
+<span class='line-number'>73</span>
+<span class='line-number'>74</span>
+<span class='line-number'>75</span>
+<span class='line-number'>76</span>
+<span class='line-number'>77</span>
+<span class='line-number'>78</span>
+<span class='line-number'>79</span>
+<span class='line-number'>80</span>
+<span class='line-number'>81</span>
+<span class='line-number'>82</span>
+<span class='line-number'>83</span>
+<span class='line-number'>84</span>
+<span class='line-number'>85</span>
+<span class='line-number'>86</span>
+<span class='line-number'>87</span>
+<span class='line-number'>88</span>
+<span class='line-number'>89</span>
+<span class='line-number'>90</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="kn">package</span> <span class="n">com</span><span class="o">.</span><span class="na">yoyzhou</span><span class="o">.</span><span class="na">example</span><span class="o">;&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="kn">import</span> <span class="nn">java.io.</span><span class="o">&lt;</span><span class="n">em</span><span class="o">&gt;;</span>
+</span><span class='line'><span class="kn">import</span> <span class="nn">org.apache.hadoop.io.</span><span class="o">&lt;/</span><span class="n">em</span><span class="o">&gt;;</span>
+</span><span class='line'><span class="kn">import</span> <span class="nn">org.apache.hadoop.util.StringUtils</span><span class="o">;&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="cm">/**</span>
+</span><span class='line'><span class="cm"> * Demos per how many bytes per each built-in Writable type takes and what does</span>
+</span><span class='line'><span class="cm"> * their bytes sequences look like</span>
+</span><span class='line'><span class="cm"> * </span>
+</span><span class='line'><span class="cm"> * @author yoyzhou</span>
+</span><span class='line'><span class="cm"> * </span>
+</span><span class='line'><span class="cm"> */</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="kd">public</span> <span class="kd">class</span> <span class="nc">WritableBytesLengthDemo</span> <span class="o">{&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">IOException</span> <span class="o">{</span>
+</span><span class='line'>
+</span><span class='line'>	<span class="c1">// one billion representations by different Writable object</span>
+</span><span class='line'>	<span class="n">IntWritable</span> <span class="n">int_b</span> <span class="o">=</span> <span class="k">new</span> <span class="nf">IntWritable</span><span class="o">(</span><span class="mi">1000000000</span><span class="o">);</span>
+</span><span class='line'>	<span class="n">LongWritable</span> <span class="n">long_b</span> <span class="o">=</span> <span class="k">new</span> <span class="nf">LongWritable</span><span class="o">(</span><span class="mi">1000000000</span><span class="o">);</span>
+</span><span class='line'>	<span class="n">VIntWritable</span> <span class="n">vint_b</span> <span class="o">=</span> <span class="k">new</span> <span class="nf">VIntWritable</span><span class="o">(</span><span class="mi">1000000000</span><span class="o">);</span>
+</span><span class='line'>	<span class="n">VLongWritable</span> <span class="n">vlong_b</span> <span class="o">=</span> <span class="k">new</span> <span class="nf">VLongWritable</span><span class="o">(</span><span class="mi">1000000000</span><span class="o">);</span>
+</span><span class='line'>
+</span><span class='line'>	<span class="c1">// serialize writable object to byte array</span>
+</span><span class='line'>	<span class="kt">byte</span><span class="o">[]</span> <span class="n">bs_int_b</span> <span class="o">=</span> <span class="n">serialize</span><span class="o">(</span><span class="n">int_b</span><span class="o">);</span>
+</span><span class='line'>	<span class="kt">byte</span><span class="o">[]</span> <span class="n">bs_long_b</span> <span class="o">=</span> <span class="n">serialize</span><span class="o">(</span><span class="n">long_b</span><span class="o">);</span>
+</span><span class='line'>	<span class="kt">byte</span><span class="o">[]</span> <span class="n">bs_vint_b</span> <span class="o">=</span> <span class="n">serialize</span><span class="o">(</span><span class="n">vint_b</span><span class="o">);</span>
+</span><span class='line'>	<span class="kt">byte</span><span class="o">[]</span> <span class="n">bs_vlong_b</span> <span class="o">=</span> <span class="n">serialize</span><span class="o">(</span><span class="n">vlong_b</span><span class="o">);</span>
+</span><span class='line'>
+</span><span class='line'>	<span class="c1">// print byte array in hex string and their length</span>
+</span><span class='line'>	<span class="n">String</span> <span class="n">hex</span> <span class="o">=</span> <span class="n">StringUtils</span><span class="o">.</span><span class="na">byteToHexString</span><span class="o">(</span><span class="n">bs_int_b</span><span class="o">);</span>
+</span><span class='line'>	<span class="n">formatPrint</span><span class="o">(</span><span class="s">&quot;IntWritable&quot;</span><span class="o">,</span> <span class="s">&quot;1,000,000,000&quot;</span><span class="o">,</span><span class="n">hex</span><span class="o">,</span> <span class="n">bs_int_b</span><span class="o">.</span><span class="na">length</span><span class="o">);</span>
+</span><span class='line'>
+</span><span class='line'>	<span class="n">hex</span> <span class="o">=</span> <span class="n">StringUtils</span><span class="o">.</span><span class="na">byteToHexString</span><span class="o">(</span><span class="n">bs_long_b</span><span class="o">);</span>
+</span><span class='line'>	<span class="n">formatPrint</span><span class="o">(</span><span class="s">&quot;LongWritable&quot;</span><span class="o">,</span> <span class="s">&quot;1,000,000,000&quot;</span><span class="o">,</span><span class="n">hex</span><span class="o">,</span> <span class="n">bs_long_b</span><span class="o">.</span><span class="na">length</span><span class="o">);</span>
+</span><span class='line'>
+</span><span class='line'>	<span class="n">hex</span> <span class="o">=</span> <span class="n">StringUtils</span><span class="o">.</span><span class="na">byteToHexString</span><span class="o">(</span><span class="n">bs_vint_b</span><span class="o">);</span>
+</span><span class='line'>	<span class="n">formatPrint</span><span class="o">(</span><span class="s">&quot;VIntWritable&quot;</span><span class="o">,</span> <span class="s">&quot;1,000,000,000&quot;</span><span class="o">,</span><span class="n">hex</span><span class="o">,</span> <span class="n">bs_vint_b</span><span class="o">.</span><span class="na">length</span><span class="o">);</span>
+</span><span class='line'>
+</span><span class='line'>	<span class="n">hex</span> <span class="o">=</span> <span class="n">StringUtils</span><span class="o">.</span><span class="na">byteToHexString</span><span class="o">(</span><span class="n">bs_vlong_b</span><span class="o">);</span>
+</span><span class='line'>	<span class="n">formatPrint</span><span class="o">(</span><span class="s">&quot;VLongWritable&quot;</span><span class="o">,</span> <span class="s">&quot;1,000,000,000&quot;</span><span class="o">,</span> <span class="n">hex</span><span class="o">,</span> <span class="n">bs_vlong_b</span><span class="o">.</span><span class="na">length</span><span class="o">);</span>
+</span><span class='line'>	
+</span><span class='line'>	
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="kd">private</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">formatPrint</span><span class="o">(</span><span class="n">String</span> <span class="n">type</span><span class="o">,</span> <span class="n">String</span> <span class="n">param</span><span class="o">,</span> <span class="n">String</span> <span class="n">hex</span><span class="o">,</span> <span class="kt">int</span> <span class="n">length</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>
+</span><span class='line'>	<span class="n">String</span> <span class="n">format</span> <span class="o">=</span> <span class="s">&quot;%1$-50s %2$-16s with length: %3$2d%n&quot;</span><span class="o">;</span>
+</span><span class='line'>	<span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">format</span><span class="o">(</span><span class="n">format</span><span class="o">,</span> <span class="s">&quot;Byte array per &quot;</span> <span class="o">+</span> <span class="n">type</span>
+</span><span class='line'>			<span class="o">+</span> <span class="s">&quot;(&quot;</span><span class="o">+</span> <span class="n">param</span> <span class="o">+</span><span class="s">&quot;) is:&quot;</span><span class="o">,</span> <span class="n">hex</span><span class="o">,</span> <span class="n">length</span><span class="o">);</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="cm">/**</span>
+</span><span class='line'><span class="cm"> * Utility method to serialize Writable object, return byte array</span>
+</span><span class='line'><span class="cm"> * representing the Writable object</span>
+</span><span class='line'><span class="cm"> * </span>
+</span><span class='line'><span class="cm"> * */</span>
+</span><span class='line'><span class="kd">public</span> <span class="kd">static</span> <span class="kt">byte</span><span class="o">[]</span> <span class="nf">serialize</span><span class="o">(</span><span class="n">Writable</span> <span class="n">writable</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">IOException</span> <span class="o">{</span>
+</span><span class='line'>
+</span><span class='line'>	<span class="n">ByteArrayOutputStream</span> <span class="n">out</span> <span class="o">=</span> <span class="k">new</span> <span class="nf">ByteArrayOutputStream</span><span class="o">();</span>
+</span><span class='line'>	<span class="n">DataOutputStream</span> <span class="n">dataOut</span> <span class="o">=</span> <span class="k">new</span> <span class="nf">DataOutputStream</span><span class="o">(</span><span class="n">out</span><span class="o">);</span>
+</span><span class='line'>	<span class="n">writable</span><span class="o">.</span><span class="na">write</span><span class="o">(</span><span class="n">dataOut</span><span class="o">);</span>
+</span><span class='line'>	<span class="n">dataOut</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
+</span><span class='line'>
+</span><span class='line'>	<span class="k">return</span> <span class="n">out</span><span class="o">.</span><span class="na">toByteArray</span><span class="o">();</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="cm">/**</span>
+</span><span class='line'><span class="cm"> * Utility method to deserialize input byte array, return Writable object</span>
+</span><span class='line'><span class="cm"> * </span>
+</span><span class='line'><span class="cm"> * */</span>
+</span><span class='line'><span class="kd">public</span> <span class="kd">static</span> <span class="n">Writable</span> <span class="nf">deserialize</span><span class="o">(</span><span class="n">Writable</span> <span class="n">writable</span><span class="o">,</span> <span class="kt">byte</span><span class="o">[]</span> <span class="n">bytes</span><span class="o">)</span>
+</span><span class='line'>		<span class="kd">throws</span> <span class="n">IOException</span> <span class="o">{</span>
+</span><span class='line'>
+</span><span class='line'>	<span class="n">ByteArrayInputStream</span> <span class="n">in</span> <span class="o">=</span> <span class="k">new</span> <span class="nf">ByteArrayInputStream</span><span class="o">(</span><span class="n">bytes</span><span class="o">);</span>
+</span><span class='line'>	<span class="n">DataInputStream</span> <span class="n">dataIn</span> <span class="o">=</span> <span class="k">new</span> <span class="nf">DataInputStream</span><span class="o">(</span><span class="n">in</span><span class="o">);</span>
+</span><span class='line'>	<span class="n">writable</span><span class="o">.</span><span class="na">readFields</span><span class="o">(</span><span class="n">dataIn</span><span class="o">);</span>
+</span><span class='line'>
+</span><span class='line'>	<span class="n">dataIn</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
+</span><span class='line'>	<span class="k">return</span> <span class="n">writable</span><span class="o">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">}</span> <span class="o">}</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span>
+</span></code></pre></td></tr></table></div></figure></p>
+
+<p>程序输出：</p>
+
+<pre><code>Byte array per IntWritable(1,000,000,000) is:  \     
+3b9aca00         with length:  4
+
+Byte array per LongWritable(1,000,000,000) is: \     
+000000003b9aca00 with length:  8
+
+Byte array per VIntWritable(1,000,000,000) is: \     
+8c3b9aca00       with length:  5
+
+Byte array per VLongWritable(1,000,000,000) is:\    
+8c3b9aca00       with length:  5
+</code></pre>
+
+<p>从上面的输出我们可以看出：</p>
+
+<p>+ 对1,000,000,000的表示不同的Writable占用了不同字节长度</p>
+
+<p>+ 变长Writable类型并不总是比定长类型更加节省空间，当IntWritable占用4个字节、LongWritable占用8个字节时，相应的变长Writable需要一个额外的字节来存放正负信息和字节长度。所以回到前面的整数类型选择的问题上，<strong>选择出最合适的整数Writable类型，我们应该对数值的总体分布有一定的认识</strong>。</p>
+
+<h4 id="text">Text的字节序列</h4>
+
+<p>可以简单的认为Text类是java.lang.String的Writable类型，但是要注意的是Text类对于Unicode字符采用的是UTF-8编码，而不是使用Java Character类的UTF-16编码。</p>
+
+<p>Java Character类采用遵循Unicode Standard version 4的UTF-16编码<a href="http://docs.oracle.com/javase/6/docs/api/java/lang/Character.html">[1]</a>，每个字符采用定长的16位(两个字节)进行编码，对于代码点高于Basic Multilingual Plane(BMP，代码点U+0000～U+FFFF)的增补字符，采用两个代理字符进行表示。</p>
+
+<p>Text类采用的UTF-8编码，使用变长的1～4个字节对字符进行编码。对于ASCII字符只使用1个字节，而对于High ASCII和多字节字符使用2～4个字节表示，我想Hadoop在设计时选择使用UTF-8而不是String的UTF-16就是基于上面的原因，为了节省字节长度/空间的考虑。</p>
+
+<blockquote>
+  <p>由于Text采用的是UTF-8编码，所以Text类没有提供String那样多的操作，并且在操作Text对象时，比如Indexing和Iteration，一定要注意这个区别，不过我们建议在进行Text操作时，如果可能可以将Text对象先转换成String，再进行操作。</p>
+</blockquote>
+
+<p>Text类的字节序列表示为一个VIntWritable + UTF-8字节流，VIntWritable为整个Text的字符长度，UTF-8字节数组为真正的Text字节流。具体请看下面的代码片段：</p>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="err">…</span><span class="c1">//omitted per conciseness</span>
+</span><span class='line'><span class="n">Text</span> <span class="n">myText</span> <span class="o">=</span> <span class="k">new</span> <span class="nf">Text</span><span class="o">(</span><span class="err">“</span><span class="n">my</span> <span class="n">text</span><span class="err">”</span><span class="o">);</span>
+</span><span class='line'><span class="kt">byte</span><span class="o">[]</span> <span class="n">text_bs</span> <span class="o">=</span> <span class="n">serialize</span><span class="o">(</span><span class="n">myText</span><span class="o">);</span>
+</span><span class='line'><span class="n">hex</span> <span class="o">=</span> <span class="n">StringUtils</span><span class="o">.</span><span class="na">byteToHexString</span><span class="o">(</span><span class="n">text_bs</span><span class="o">);</span>
+</span><span class='line'><span class="n">formatPrint</span><span class="o">(</span><span class="err">“</span><span class="n">Text</span><span class="err">”</span><span class="o">,</span> <span class="err">“</span><span class="s">&quot;my text&quot;</span><span class="err">”</span><span class="o">,</span> <span class="n">hex</span><span class="o">,</span> <span class="n">text_bs</span><span class="o">.</span><span class="na">length</span><span class="o">);&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="n">Text</span> <span class="n">myText2</span> <span class="o">=</span> <span class="k">new</span> <span class="nf">Text</span><span class="o">(</span><span class="err">“</span><span class="n">我的文本</span><span class="err">”</span><span class="o">);</span>
+</span><span class='line'><span class="kt">byte</span><span class="o">[]</span> <span class="n">text2_bs</span> <span class="o">=</span> <span class="n">serialize</span><span class="o">(</span><span class="n">myText2</span><span class="o">);</span>
+</span><span class='line'><span class="n">hex</span> <span class="o">=</span> <span class="n">StringUtils</span><span class="o">.</span><span class="na">byteToHexString</span><span class="o">(</span><span class="n">text2_bs</span><span class="o">);</span>
+</span><span class='line'><span class="n">formatPrint</span><span class="o">(</span><span class="err">“</span><span class="n">Text</span><span class="err">”</span><span class="o">,</span> <span class="err">“</span><span class="s">&quot;我的文本&quot;</span><span class="err">”</span><span class="o">,</span> <span class="n">hex</span><span class="o">,</span> <span class="n">text2_bs</span><span class="o">.</span><span class="na">length</span><span class="o">);</span>
+</span><span class='line'><span class="err">…</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span>
+</span></code></pre></td></tr></table></div></figure></p>
+
+<p>程序输出：</p>
+
+<pre><code>Byte array per Text("my text") is: \
+ 	076d792074657874 with length:  8
+
+Byte array per Text("我的文本") is: \
+0ce68891e79a84e69687e69cac with length: 13
+</code></pre>
+
+<p>在上面的输出中，首个字节代表的该段Text/文本的长度，在UTF-8编码下“my text”占用的字节长度为7个字节（07），而中文“我的文本”的字节长度是12个字节（0c）。</p>
+
+<h4 id="writable-3">定制Writable类的字节序列</h4>
+
+<p>本节中我们将使用上篇文章中的MyWritable类进行说明，回顾一下，MyWritable是一个由两个VLongWritable类构成的定制化Writable类型。</p>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="err">…</span><span class="c1">//omitted per conciseness</span>
+</span><span class='line'><span class="n">MyWritable</span> <span class="n">customized</span> <span class="o">=</span> <span class="k">new</span> <span class="nf">MyWritable</span><span class="o">(</span><span class="k">new</span> <span class="nf">VLongWritable</span><span class="o">(</span><span class="mi">1000</span><span class="o">),</span>
+</span><span class='line'> 						<span class="k">new</span> <span class="nf">VLongWritable</span><span class="o">(</span><span class="mi">1000000000</span><span class="o">));</span>
+</span><span class='line'><span class="kt">byte</span><span class="o">[]</span> <span class="n">customized_bs</span> <span class="o">=</span> <span class="n">serialize</span><span class="o">(</span><span class="n">customized</span><span class="o">);</span>
+</span><span class='line'><span class="n">hex</span> <span class="o">=</span> <span class="n">StringUtils</span><span class="o">.</span><span class="na">byteToHexString</span><span class="o">(</span><span class="n">customized_bs</span><span class="o">);</span>
+</span><span class='line'><span class="n">formatPrint</span><span class="o">(</span><span class="err">“</span><span class="n">MyWritable</span><span class="err">”</span><span class="o">,</span> <span class="err">“</span><span class="mi">1000</span><span class="o">,</span> <span class="mi">1000000000</span><span class="err">”</span><span class="o">,</span> <span class="n">hex</span><span class="o">,</span> <span class="n">customized_bs</span><span class="o">.</span><span class="na">length</span><span class="o">);</span>
+</span><span class='line'><span class="err">…</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span>
+</span></code></pre></td></tr></table></div></figure></p>
+
+<p>程序输出：</p>
+
+<pre><code>Byte array per MyWritable(1000, 1000000000) is: \
+8e03e88c3b9aca00 with length:  8
+</code></pre>
+
+<p>从输出我们可以很清楚的看到，定制的Writable类的字节序列实际上就是基本Writable类型的组合，输出“8e03e88c3b9aca00”的前三个字节是1000的VLongWritable的字节序列，“8c3b9aca00”是1000000000VLongWritable的字节序列，这一点可以从我们编写的MyWritable类的write方法中找到答案：</p>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="err">…</span><span class="c1">//omitted per conciseness</span>
+</span><span class='line'><span class="nd">@Override</span>
+</span><span class='line'><span class="kd">public</span> <span class="kt">void</span> <span class="nf">write</span><span class="o">(</span><span class="n">DataOutput</span> <span class="n">out</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">IOException</span> <span class="o">{</span>
+</span><span class='line'>	<span class="n">field1</span><span class="o">.</span><span class="na">write</span><span class="o">(</span><span class="n">out</span><span class="o">);</span>
+</span><span class='line'>	<span class="n">field2</span><span class="o">.</span><span class="na">write</span><span class="o">(</span><span class="n">out</span><span class="o">);</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'><span class="err">…</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span>
+</span></code></pre></td></tr></table></div></figure></p>
+
+<h4 id="section">总结</h4>
+
+<p>本文通过实例介绍了Hadoop Writable类序列化时占用的字节长度，并分析了Writable类序列化后的字节序列的结构。需要注意的是Text类为了节省空间的目的采用了UTF-8的编码，而不是Java Character的UTF-16编码，自定义的Writable的字节序列与该Writable类的write()方法有关。</p>
+
+<p>最后指出，Writable是Hadoop序列化的核心，理解Hadoop Writable的字节长度和字节序列对于选择合适的Writable对象以及在字节层面操作Writable对象至关重要。</p>
+
+<h4 id="section-1">参考资料</h4>
+
+<p>Tom White, Hadoop: The Definitive Guide, 3rd Edition </p>
+
+<p><a href="/blog/2013/05/09/hadoop-serialization-and-writable-object-1/">Hadoop序列化与Writable接口(一)</a></p>
+
+<p><code>---EOF---</code></p>
+
+<!-- reference-like links -->
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Hadoop序列化与Writable接口(一)]]></title>
+    <link href="http://yoyzhou.github.io/blog/2013/05/09/hadoop-serialization-and-writable-object-1/"/>
+    <updated>2013-05-09T20:49:00-07:00</updated>
+    <id>http://yoyzhou.github.io/blog/2013/05/09/hadoop-serialization-and-writable-object-1</id>
+    <content type="html"><![CDATA[<h4 id="section">序列化</h4>
+
+<p><strong>序列化</strong>（serialization）是指将结构化的对象转化为字节流，以便在网络上传输或者写入到硬盘进行永久存储；相对的<strong>反序列化</strong>（deserialization）是指将字节流转回到结构化对象的过程。</p>
+
+<p>在分布式系统中进程将对象序列化为字节流，通过网络传输到另一进程，另一进程接收到字节流，通过反序列化转回到结构化对象，以达到进程间通信。在Hadoop中，Mapper，Combiner，Reducer等阶段之间的通信都需要使用序列化与反序列化技术。举例来说，Mapper产生的中间结果（<code>&lt;key: value1, value2...&gt;</code>）需要写入到本地硬盘，这是序列化过程（将结构化对象转化为字节流，并写入硬盘），而Reducer阶段读取Mapper的中间结果的过程则是一个反序列化过程（读取硬盘上存储的字节流文件，并转回为结构化对象），需要注意的是，能够在网络上传输的只能是字节流，Mapper的中间结果在不同主机间洗牌时，对象将经历序列化和反序列化两个过程。</p>
+
+<p>序列化是Hadoop核心的一部分，在Hadoop中，位于org.apache.hadoop.io包中的Writable接口是Hadoop序列化格式的实现。</p>
+
+<h4 id="writable">Writable接口</h4>
+
+<p>Hadoop Writable接口是基于DataInput和DataOutput实现的序列化协议，紧凑（高效使用存储空间），快速（读写数据、序列化与反序列化的开销小）。Hadoop中的键（key）和值（value）必须是实现了Writable接口的对象（键还必须实现WritableComparable，以便进行排序）。</p>
+
+<p>以下是Hadoop（使用的是Hadoop 1.1.2）中Writable接口的声明：</p>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kn">package</span> <span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">hadoop</span><span class="o">.</span><span class="na">io</span><span class="o">;&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="kn">import</span> <span class="nn">java.io.DataOutput</span><span class="o">;</span>
+</span><span class='line'><span class="kn">import</span> <span class="nn">java.io.DataInput</span><span class="o">;</span>
+</span><span class='line'><span class="kn">import</span> <span class="nn">java.io.IOException</span><span class="o">;&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">Writable</span> <span class="o">{</span>
+</span><span class='line'>  <span class="cm">/** </span>
+</span><span class='line'><span class="cm">   * Serialize the fields of this object to &lt;code&gt;out&lt;/code&gt;.</span>
+</span><span class='line'><span class="cm">   * </span>
+</span><span class='line'><span class="cm">   * @param out &lt;code&gt;DataOuput&lt;/code&gt; to serialize this object into.</span>
+</span><span class='line'><span class="cm">   * @throws IOException</span>
+</span><span class='line'><span class="cm">   */</span>
+</span><span class='line'>  <span class="kt">void</span> <span class="nf">write</span><span class="o">(</span><span class="n">DataOutput</span> <span class="n">out</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">IOException</span><span class="o">;&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="cm">/** </span>
+</span><span class='line'><span class="cm">   * Deserialize the fields of this object from &lt;code&gt;in&lt;/code&gt;.&lt;br /&gt;</span>
+</span><span class='line'><span class="cm">   * </span>
+</span><span class='line'><span class="cm">   * &amp;lt;p&amp;gt;For efficiency, implementations should attempt to re-use storage in the </span>
+</span><span class='line'><span class="cm">   * existing object where possible.&amp;lt;/p&amp;gt;</span>
+</span><span class='line'><span class="cm">   * </span>
+</span><span class='line'><span class="cm">   * @param in &lt;code&gt;DataInput&lt;/code&gt; to deseriablize this object from.</span>
+</span><span class='line'><span class="cm">   * @throws IOException</span>
+</span><span class='line'><span class="cm">   */</span>
+</span><span class='line'>  <span class="kt">void</span> <span class="nf">readFields</span><span class="o">(</span><span class="n">DataInput</span> <span class="n">in</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">IOException</span><span class="o">;</span>
+</span><span class='line'><span class="o">}&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span>
+</span></code></pre></td></tr></table></div></figure></p>
+
+<h4 id="writable-1">Writable类</h4>
+
+<p>Hadoop自身提供了多种具体的Writable类，包含了常见的Java基本类型（boolean、byte、short、int、float、long和double等）和集合类型（BytesWritable、ArrayWritable和MapWritable等）。这些类型都位于org.apache.hadoop.io包中。</p>
+
+<p><img src="/images/hadoop-writable-class.png" alt="writable-classes" /></p>
+
+<p>(图片来源：safaribooksonline.com)</p>
+
+<h4 id="writable-2">定制Writable类</h4>
+
+<p>虽然Hadoop内建了多种Writable类提供用户选择，Hadoop对Java基本类型的包装Writable类实现的RawComparable接口，使得这些对象不需要反序列化过程，便可以在字节流层面进行排序，从而大大缩短了比较的时间开销，但是当我们需要更加复杂的对象时，Hadoop的内建Writable类就不能满足我们的需求了(需要注意的是Hadoop提供的Writable集合类型并没有实现RawComparable接口，因此也不满足我们的需要)，这时我们就需要定制自己的Writable类，特别将其作为键（key）的时候更应该如此，以求达到更高效的存储和快速的比较。</p>
+
+<p>下面的实例展示了如何定制一个Writable类，一个定制的Writable类首先必须实现Writable或者WritableComparable接口，然后为定制的Writable类编写write(DataOutput out)和readFields(DataInput in)方法，来控制定制的Writable类如何转化为字节流（write方法）和如何从字节流转回为Writable对象。</p>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+<span class='line-number'>52</span>
+<span class='line-number'>53</span>
+<span class='line-number'>54</span>
+<span class='line-number'>55</span>
+<span class='line-number'>56</span>
+<span class='line-number'>57</span>
+<span class='line-number'>58</span>
+<span class='line-number'>59</span>
+<span class='line-number'>60</span>
+<span class='line-number'>61</span>
+<span class='line-number'>62</span>
+<span class='line-number'>63</span>
+<span class='line-number'>64</span>
+<span class='line-number'>65</span>
+<span class='line-number'>66</span>
+<span class='line-number'>67</span>
+<span class='line-number'>68</span>
+<span class='line-number'>69</span>
+<span class='line-number'>70</span>
+<span class='line-number'>71</span>
+<span class='line-number'>72</span>
+<span class='line-number'>73</span>
+<span class='line-number'>74</span>
+<span class='line-number'>75</span>
+<span class='line-number'>76</span>
+<span class='line-number'>77</span>
+<span class='line-number'>78</span>
+<span class='line-number'>79</span>
+<span class='line-number'>80</span>
+<span class='line-number'>81</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kn">package</span> <span class="n">com</span><span class="o">.</span><span class="na">yoyzhou</span><span class="o">.</span><span class="na">weibo</span><span class="o">;&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="kn">import</span> <span class="nn">java.io.DataInput</span><span class="o">;</span>
+</span><span class='line'><span class="kn">import</span> <span class="nn">java.io.DataOutput</span><span class="o">;</span>
+</span><span class='line'><span class="kn">import</span> <span class="nn">java.io.IOException</span><span class="o">;</span>
+</span><span class='line'><span class="kn">import</span> <span class="nn">org.apache.hadoop.io.VLongWritable</span><span class="o">;</span>
+</span><span class='line'><span class="kn">import</span> <span class="nn">org.apache.hadoop.io.Writable</span><span class="o">;&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="cm">/**</span>
+</span><span class='line'><span class="cm"> *This MyWritable class demonstrates how to write a custom Writable class </span>
+</span><span class='line'><span class="cm"> *</span>
+</span><span class='line'><span class="cm"> **/</span>
+</span><span class='line'><span class="kd">public</span> <span class="kd">class</span> <span class="nc">MyWritable</span> <span class="kd">implements</span> <span class="n">Writable</span><span class="o">{&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span><span class="kd">private</span> <span class="n">VLongWritable</span> <span class="n">field1</span><span class="o">;</span>
+</span><span class='line'><span class="kd">private</span> <span class="n">VLongWritable</span> <span class="n">field2</span><span class="o">;</span>
+</span><span class='line'>	
+</span><span class='line'><span class="kd">public</span> <span class="nf">MyWritable</span><span class="o">(){</span>
+</span><span class='line'>	<span class="k">this</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="k">new</span> <span class="nf">VLongWritable</span><span class="o">(),</span> <span class="k">new</span> <span class="nf">VLongWritable</span><span class="o">());</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>	
+</span><span class='line'>	
+</span><span class='line'><span class="kd">public</span> <span class="nf">MyWritable</span><span class="o">(</span><span class="n">VLongWritable</span> <span class="n">fld1</span><span class="o">,</span> <span class="n">VLongWritable</span> <span class="n">fld2</span><span class="o">){</span>
+</span><span class='line'>		
+</span><span class='line'>	<span class="k">this</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="n">fld1</span><span class="o">,</span> <span class="n">fld2</span><span class="o">);</span>
+</span><span class='line'>		
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>	
+</span><span class='line'><span class="kd">public</span> <span class="kt">void</span> <span class="nf">set</span><span class="o">(</span><span class="n">VLongWritable</span> <span class="n">fld1</span><span class="o">,</span> <span class="n">VLongWritable</span> <span class="n">fld2</span><span class="o">){</span>
+</span><span class='line'>	<span class="c1">//make sure the smaller field is always put as field1</span>
+</span><span class='line'>	<span class="k">if</span><span class="o">(</span><span class="n">fld1</span><span class="o">.</span><span class="na">get</span><span class="o">()</span> <span class="o">&amp;</span><span class="n">lt</span><span class="o">;=</span> <span class="n">fld2</span><span class="o">.</span><span class="na">get</span><span class="o">()){</span>
+</span><span class='line'>		<span class="k">this</span><span class="o">.</span><span class="na">field1</span> <span class="o">=</span> <span class="n">fld1</span><span class="o">;</span>
+</span><span class='line'>		<span class="k">this</span><span class="o">.</span><span class="na">field2</span> <span class="o">=</span> <span class="n">fld2</span><span class="o">;</span>
+</span><span class='line'>	<span class="o">}</span><span class="k">else</span><span class="o">{</span>
+</span><span class='line'>			
+</span><span class='line'>		<span class="k">this</span><span class="o">.</span><span class="na">field1</span> <span class="o">=</span> <span class="n">fld2</span><span class="o">;</span>
+</span><span class='line'>		<span class="k">this</span><span class="o">.</span><span class="na">field2</span> <span class="o">=</span> <span class="n">fld1</span><span class="o">;</span>
+</span><span class='line'>	<span class="o">}</span>
+</span><span class='line'>	<span class="o">}</span>
+</span><span class='line'>			
+</span><span class='line'><span class="c1">//How to write and read MyWritable fields from DataOutput and DataInput stream</span>
+</span><span class='line'><span class="nd">@Override</span>
+</span><span class='line'><span class="kd">public</span> <span class="kt">void</span> <span class="nf">write</span><span class="o">(</span><span class="n">DataOutput</span> <span class="n">out</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">IOException</span> <span class="o">{</span>
+</span><span class='line'>		
+</span><span class='line'>	<span class="n">field1</span><span class="o">.</span><span class="na">write</span><span class="o">(</span><span class="n">out</span><span class="o">);</span>
+</span><span class='line'>	<span class="n">field2</span><span class="o">.</span><span class="na">write</span><span class="o">(</span><span class="n">out</span><span class="o">);</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="nd">@Override</span>
+</span><span class='line'><span class="kd">public</span> <span class="kt">void</span> <span class="nf">readFields</span><span class="o">(</span><span class="n">DataInput</span> <span class="n">in</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">IOException</span> <span class="o">{</span>
+</span><span class='line'>		
+</span><span class='line'>	<span class="n">field1</span><span class="o">.</span><span class="na">readFields</span><span class="o">(</span><span class="n">in</span><span class="o">);</span>
+</span><span class='line'>	<span class="n">field2</span><span class="o">.</span><span class="na">readFields</span><span class="o">(</span><span class="n">in</span><span class="o">);</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="cm">/** Returns true if &amp;lt;code&amp;gt;o&amp;lt;/code&amp;gt; is a MyWritable with the same values. */</span>
+</span><span class='line'><span class="nd">@Override</span>
+</span><span class='line'><span class="kd">public</span> <span class="kt">boolean</span> <span class="nf">equals</span><span class="o">(</span><span class="n">Object</span> <span class="n">o</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>	 <span class="k">if</span> <span class="o">(!(</span><span class="n">o</span> <span class="k">instanceof</span> <span class="n">MyWritable</span><span class="o">))</span>
+</span><span class='line'>	    <span class="k">return</span> <span class="kc">false</span><span class="o">;</span>
+</span><span class='line'>	
+</span><span class='line'>	    <span class="n">MyWritable</span> <span class="n">other</span> <span class="o">=</span> <span class="o">(</span><span class="n">MyWritable</span><span class="o">)</span><span class="n">o</span><span class="o">;</span>
+</span><span class='line'>	    <span class="k">return</span> <span class="n">field1</span><span class="o">.</span><span class="na">equals</span><span class="o">(</span><span class="n">other</span><span class="o">.</span><span class="na">field1</span><span class="o">)</span> <span class="o">&amp;</span><span class="n">amp</span><span class="o">;&amp;</span><span class="n">amp</span><span class="o">;</span> <span class="n">field2</span><span class="o">.</span><span class="na">equals</span><span class="o">(</span><span class="n">other</span><span class="o">.</span><span class="na">field2</span><span class="o">);</span>
+</span><span class='line'>	
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>	
+</span><span class='line'><span class="nd">@Override</span>
+</span><span class='line'><span class="kd">public</span> <span class="kt">int</span> <span class="nf">hashCode</span><span class="o">(){</span>
+</span><span class='line'>		
+</span><span class='line'>	<span class="k">return</span> <span class="n">field1</span><span class="o">.</span><span class="na">hashCode</span><span class="o">()</span> <span class="o">*</span> <span class="mi">163</span> <span class="o">+</span> <span class="n">field2</span><span class="o">.</span><span class="na">hashCode</span><span class="o">();</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>	
+</span><span class='line'><span class="nd">@Override</span>
+</span><span class='line'><span class="kd">public</span> <span class="n">String</span> <span class="nf">toString</span><span class="o">()</span> <span class="o">{</span>
+</span><span class='line'>	<span class="k">return</span> <span class="n">field1</span><span class="o">.</span><span class="na">toString</span><span class="o">()</span> <span class="o">+</span> <span class="s">&quot;\t&quot;</span> <span class="o">+</span> <span class="n">field2</span><span class="o">.</span><span class="na">toString</span><span class="o">();</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;}&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span>
+</span></code></pre></td></tr></table></div></figure></p>
+
+<p>未完待续，下一篇中将介绍Writable对象序列化为字节流时占用的字节长度以及其字节序列的构成。</p>
+
+<h4 id="section-1">参考资料</h4>
+
+<p>Tom White, Hadoop: The Definitive Guide, 3rd Edition </p>
+
+<p><code>---To Be Continued---</code></p>
+
+]]></content>
+  </entry>
+  
+</feed>

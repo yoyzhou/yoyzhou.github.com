@@ -1,0 +1,352 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: scrapy | Zhou's Blog]]></title>
+  <link href="http://yoyzhou.github.io/blog/categories/scrapy/atom.xml" rel="self"/>
+  <link href="http://yoyzhou.github.io/"/>
+  <updated>2014-11-02T01:05:30-07:00</updated>
+  <id>http://yoyzhou.github.io/</id>
+  <author>
+    <name><![CDATA[yoyzhou]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[基于UID的WEIBO信息抓取框架WEIBO_SCRAPY]]></title>
+    <link href="http://yoyzhou.github.io/blog/2013/04/08/weibo-scrapy-framework-with-multi-threading/"/>
+    <updated>2013-04-08T20:55:00-07:00</updated>
+    <id>http://yoyzhou.github.io/blog/2013/04/08/weibo-scrapy-framework-with-multi-threading</id>
+    <content type="html"><![CDATA[<p>本文介绍基于微博UID的SINA微博信息抓取框架WEIBO_SCRAPY。 WEIBO_SCRAPY是一个PYTHON实现的，使用多线程抓取WEIBO信息的框架。WEIBO_SCRAPY框架给用户提供WEIBO的模拟登录和多线程抓取微博信息的接口，让用户只需关心抓取的业务逻辑，而不用处理棘手的WEIBO模拟登录和多线程编程。</p>
+
+<h3 id="weiboscrapy">WEIBO_SCRAPY</h3>
+<p>WEIBO_SCRAPY是一个PYTHON实现的，使用基于微博UID的方式从WEIBO.COM页面抓取信息的框架。框架以微博UID为最小单位，为每一个UID分配一个抓取线程，因此每一个UID相当于一个<strong>抓取任务</strong>。WEIBO_SCRAPY内置微博模拟登录和多线程框架，让用户只需关注以微博UID为基础的抓取业务逻辑。具体的说，使用WEIBO_SCRAPY用户只需要重载WEIBO_SCRAPY的<strong>抓取任务</strong>方法为自己的抓取逻辑，即可实现多线程地抓取微博信息（详见下文<code>WEIBO_SCRAPY的实现</code>小节）。</p>
+
+<h3 id="weiboscrapy-1">WEIBO_SCRAPY的功能</h3>
+<p>1. 微博模拟登录</p>
+
+<p>2. 多线程抓取框架</p>
+
+<p>3. <strong>抓取任务</strong>接口</p>
+
+<p>4. 抓取参数配置</p>
+
+<h3 id="weiboscrapy-2">WEIBO_SCRAPY的实现</h3>
+
+<h4 id="section">1 微博模拟登录</h4>
+<p>请参考拙文<a href="/blog/2013/03/18/sina-weibo-login-simulator-in-python/">Python模拟登录新浪微薄（使用RSA加密方式和Cookies文件）</a></p>
+
+<h4 id="section-1">2 多线程抓取框架</h4>
+<p>WEIBO_SCRAPY使用<a href="http://docs.python.org/2/library/queue.html">Queue</a>实现多线程抓取框架，Queue中的元素为微博用户的UID，每一个抓取线程消费Queue中的UID，抓取线程在获得UID之后交给<strong>抓取任务</strong>处理该UID。框架实现<code>从某一个UID开始</code>和<code>从文件中加载UID列表</code>两种抓取方式，无论何种方式都有可能返回在抓取过程中新获得的UID(通过解析抓取的页面获得)，并加入到Queue中，对于从单一某个UID开始的方式，返回新获得的UID是推荐的做法，不然Queue中就只有开始UID一个抓取任务。</p>
+
+<blockquote>
+  <p>The Queue module implements multi-producer, multi-consumer queues. It is especially useful in threaded programming when information must be exchanged safely between multiple threads. </p>
+</blockquote>
+
+<p>关于更多Python多线程编程的知识，请参考拙文<a href="/blog/2013/02/28/python-threads-synchronization-locks/">Python线程同步机制: Locks, RLocks, Semaphores, Conditions, Events和Queues</a></p>
+
+<p>以下是WEIBO_SCRAPY多线程框架的实现代码，分别是抓取线程和抓取的主进程，在第二段代码中抓取的主进程生成用户指定数目的抓取进行执行抓取任务：</p>
+
+<p>抓取线程</p>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="k">class</span> <span class="nc">scrapy_threading</span><span class="p">(</span><span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">):</span>
+</span><span class='line'>    <span class="err">“</span><span class="s">&quot;”Thread class to handle scrapy task”””&lt;/p&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span><span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">,</span> <span class="n">wanted</span><span class="p">):</span>
+</span><span class='line'>    <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</span><span class='line'>    <span class="bp">self</span><span class="o">.</span><span class="n">do_task</span> <span class="o">=</span> <span class="n">task</span>
+</span><span class='line'>    <span class="bp">self</span><span class="o">.</span><span class="n">wanted</span> <span class="o">=</span> <span class="n">wanted</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span class='line'>    <span class="k">global</span> <span class="n">visited_uids</span>
+</span><span class='line'>    <span class="k">global</span> <span class="n">task_queue</span>
+</span><span class='line'>    <span class="k">global</span> <span class="n">scraped</span>
+</span><span class='line'>    <span class="k">global</span> <span class="n">lock</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">while</span> <span class="n">scraped</span> <span class="o">&amp;</span><span class="n">lt</span><span class="p">;</span> <span class="bp">self</span><span class="o">.</span><span class="n">wanted</span><span class="p">:</span>
+</span><span class='line'>
+</span><span class='line'>        <span class="c">#crawl info based on each uid</span>
+</span><span class='line'>        <span class="k">if</span> <span class="n">task_queue</span><span class="p">:</span>
+</span><span class='line'>
+</span><span class='line'>            <span class="n">uid</span> <span class="o">=</span> <span class="n">task_queue</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+</span><span class='line'>
+</span><span class='line'>            <span class="k">if</span> <span class="n">uid</span> <span class="ow">in</span> <span class="n">visited_uids</span><span class="p">:</span> <span class="c">#already crawled</span>
+</span><span class='line'>                <span class="n">task_queue</span><span class="o">.</span><span class="n">task_done</span><span class="p">()</span>
+</span><span class='line'>
+</span><span class='line'>            <span class="k">else</span><span class="p">:</span>
+</span><span class='line'>                <span class="k">try</span><span class="p">:</span>
+</span><span class='line'>                    <span class="n">gains</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_task</span><span class="p">(</span><span class="n">uid</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>                    <span class="c">#per debug</span>
+</span><span class='line'>                    <span class="n">wow</span> <span class="o">=</span> <span class="s">&#39;{0: &amp;lt;25}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s">&#39;[&#39;</span> <span class="o">+</span> <span class="n">time</span><span class="o">.</span><span class="n">asctime</span><span class="p">()</span> <span class="o">+</span> <span class="s">&#39;] &#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s">&#39; uid_&#39;</span> <span class="o">+</span> <span class="s">&#39;{0: &amp;lt;12}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">uid</span><span class="p">)</span>
+</span><span class='line'>                    <span class="k">print</span> <span class="n">wow</span>
+</span><span class='line'>                    <span class="k">for</span> <span class="n">uid</span> <span class="ow">in</span> <span class="n">gains</span><span class="p">:</span>
+</span><span class='line'>                        <span class="n">task_queue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">uid</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>                    <span class="c">#signals that queue job is done</span>
+</span><span class='line'>                    <span class="n">task_queue</span><span class="o">.</span><span class="n">task_done</span><span class="p">()</span>
+</span><span class='line'>
+</span><span class='line'>                    <span class="c">#counting scrapied number</span>
+</span><span class='line'>                    <span class="k">with</span> <span class="n">lock</span><span class="p">:</span>
+</span><span class='line'>                        <span class="n">scraped</span> <span class="o">+=</span> <span class="mi">1</span>
+</span><span class='line'>                        <span class="c">#per debug</span>
+</span><span class='line'>                        <span class="k">print</span> <span class="s">&#39;scraped: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">scraped</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>                <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+</span><span class='line'>                    <span class="k">print</span> <span class="n">e</span>
+</span><span class='line'>                    <span class="k">pass</span>
+</span><span class='line'>
+</span><span class='line'>        <span class="k">else</span><span class="p">:</span>
+</span><span class='line'>            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">30</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+</code></pre>
+
+<p>抓取的主进程</p>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="k">def</span> <span class="nf">scrapy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span>    <span class="n">login_status</span> <span class="o">=</span> <span class="n">login</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">login_username</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">login_password</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cookies_file</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">if</span> <span class="n">login_status</span><span class="p">:</span>
+</span><span class='line'>
+</span><span class='line'>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_uid</span><span class="p">:</span>
+</span><span class='line'>            <span class="n">task_queue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">start_uid</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">uids_file</span><span class="p">:</span>
+</span><span class='line'>            <span class="n">uids_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__load_uids__</span><span class="p">()</span>
+</span><span class='line'>            <span class="k">for</span> <span class="n">uid</span> <span class="ow">in</span> <span class="n">uids_list</span><span class="p">:</span>
+</span><span class='line'>                <span class="n">task_queue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">uid</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>        <span class="k">else</span><span class="p">:</span> <span class="c">#start uid or uids file is needed</span>
+</span><span class='line'>            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&#39;ERROR: Start uid or uids file is needed.&#39;</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>        <span class="c">#spawn a pool of threads, and pass them queue instance </span>
+</span><span class='line'>        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">thread_number</span><span class="p">):</span>
+</span><span class='line'>            <span class="n">st</span> <span class="o">=</span> <span class="n">scrapy_threading</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scrapy_do_task</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">wanted</span><span class="p">)</span>
+</span><span class='line'>            <span class="n">st</span><span class="o">.</span><span class="n">setDaemon</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+</span><span class='line'>            <span class="n">st</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+</span><span class='line'>
+</span><span class='line'>
+</span><span class='line'>        <span class="n">task_queue</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span>
+</span></code></pre></td></tr></table></div></figure></p>
+
+<h4 id="section-2">3 抓取任务接口</h4>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'>  <span class="k">def</span> <span class="nf">scrapy_do_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uid</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+</span><span class='line'>        <span class="err">‘’’</span>
+</span><span class='line'>        <span class="n">User</span> <span class="n">needs</span> <span class="n">to</span> <span class="n">overwrite</span> <span class="n">this</span> <span class="n">method</span> <span class="n">to</span> <span class="n">perform</span> <span class="n">uid</span><span class="o">-</span><span class="n">based</span> <span class="n">scrapy</span> <span class="n">task</span><span class="o">.</span>
+</span><span class='line'>        <span class="nd">@param</span> <span class="n">uid</span><span class="p">:</span> <span class="n">weibo</span> <span class="n">uid</span>
+</span><span class='line'>        <span class="nd">@return</span><span class="p">:</span> <span class="n">a</span> <span class="nb">list</span> <span class="n">of</span> <span class="n">uids</span> <span class="n">gained</span> <span class="kn">from</span> <span class="nn">this</span> <span class="nn">task</span><span class="p">,</span> <span class="n">optional</span>
+</span><span class='line'>        <span class="err">‘’’</span>
+</span><span class='line'>        <span class="c">#return []</span>
+</span><span class='line'>        <span class="k">pass</span>
+</span></code></pre></td></tr></table></div></figure>
+以上是抓取任务的接口，WEIBO_SCRAPY暴露scrapy_do_task方法，用户只需要继承WEIBO_SCRAPY的scrapy类并且重写scrapy_do_task方法为自己的抓取业务逻辑。
+像前面提到过的一样，抓取任务是基于微博用户的UID的，所以scrapy_do_task方法有一个uid参数。</p>
+
+<h4 id="section-3">4 抓取参数配置</h4>
+<p>WEIBO_SCRAPY提供简单易用的账户信息配置和抓取参数配置，在<code>scrapy.ini</code>文件中即可轻松的完成参数的配置，以下是一个配置文件的样本：</p>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="p">[</span><span class="n">login_account_info</span><span class="p">]</span>
+</span><span class='line'><span class="c">#account info for logining weibo </span>
+</span><span class='line'><span class="n">login_username</span> <span class="o">=</span> <span class="n">ur_login_account_name_here</span>
+</span><span class='line'><span class="n">login_uid</span> <span class="o">=</span> <span class="n">weibo_uid_of_login_account_here</span>
+</span><span class='line'><span class="n">login_password</span> <span class="o">=</span> <span class="n">account_password_here</span>
+</span><span class='line'><span class="n">cookies_file</span> <span class="o">=</span> <span class="n">weibo_cookies</span><span class="o">.</span><span class="n">dat</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="p">[</span><span class="n">scrapy_settings</span><span class="p">]</span>
+</span><span class='line'><span class="n">thread_number</span> <span class="o">=</span> <span class="mi">50</span>
+</span><span class='line'><span class="n">wanted</span> <span class="o">=</span> <span class="mi">100000</span>
+</span><span class='line'><span class="c">#only one property of below 2 is required, and start_uid takes advantage of uids_file</span>
+</span><span class='line'><span class="c">#also note that arguments from constructor will overwrite this two properties </span>
+</span><span class='line'><span class="n">start_uid</span> <span class="o">=</span> <span class="mi">1197161814</span>
+</span><span class='line'><span class="n">uids_file</span> <span class="o">=</span>
+</span></code></pre></td></tr></table></div></figure>
+用户也可以在scrapy类的构造器中指定配置文件的位置。</p>
+
+<h3 id="weiboscrapy-3">WEIBO_SCRAPY的使用</h3>
+<p>使用WEIBO_SCRAPY用户只需要继承WEIBO_SCRAPY的scrapy类并且重写scrapy_do_task方法为自己的抓取业务逻辑。</p>
+
+<p>以下示例代码可在<a href="https://github.com/yoyzhou/weibo_scrapy/blob/master/example.py">weibo_scrapy/example.py</a>中找到。</p>
+
+<p><figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="c">#!/usr/bin/env python</span>
+</span><span class='line'><span class="c">#coding=utf8&lt;/p&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="kn">from</span> <span class="nn">weibo_scrapy</span> <span class="kn">import</span> <span class="n">scrapy</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="k">class</span> <span class="nc">my_scrapy</span><span class="p">(</span><span class="n">scrapy</span><span class="p">):</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span><span class="k">def</span> <span class="nf">scrapy_do_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uid</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+</span><span class='line'>     <span class="sd">&#39;&#39;&#39;</span>
+</span><span class='line'><span class="sd">    User needs to overwrite this method to perform uid-based scrapy task.</span>
+</span><span class='line'><span class="sd">    @param uid: weibo uid</span>
+</span><span class='line'><span class="sd">    @return: a list of uids gained from this task, optional</span>
+</span><span class='line'><span class="sd">    &#39;&#39;&#39;</span>
+</span><span class='line'>     <span class="nb">super</span><span class="p">(</span><span class="n">my_scrapy</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwds</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>     <span class="c">#do what you want with uid here, note that this scrapy is uid based, so make sure there are uids in task queue, </span>
+</span><span class='line'>     <span class="c">#or gain new uids from this function</span>
+</span><span class='line'>     <span class="k">print</span> <span class="s">&#39;WOW...&#39;</span>
+</span><span class='line'>     <span class="k">return</span> <span class="s">&#39;replace this string with uid list which gained from this task&#39;</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="k">if</span> <span class="o">&lt;</span><span class="n">strong</span><span class="o">&gt;</span><span class="n">name</span><span class="o">&lt;/</span><span class="n">strong</span><span class="o">&gt;</span> <span class="o">==</span> <span class="err">‘</span><span class="o">&lt;</span><span class="n">strong</span><span class="o">&gt;</span><span class="n">main</span><span class="o">&lt;/</span><span class="n">strong</span><span class="o">&gt;</span><span class="err">’</span><span class="p">:</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span><span class="n">s</span> <span class="o">=</span> <span class="n">my_scrapy</span><span class="p">(</span><span class="n">start_uid</span> <span class="o">=</span> <span class="s">&#39;1197161814&#39;</span><span class="p">)</span>
+</span><span class='line'><span class="n">s</span><span class="o">.</span><span class="n">scrapy</span><span class="p">()</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span>
+</span></code></pre></td></tr></table></div></figure></p>
+
+<h3 id="section-4">项目源代码</h3>
+<p>WEIBO_SCRAPY项目的源代码地址：<a href="https://github.com/yoyzhou/weibo_scrapy">weibo_scrapy</a>，<a href="https://github.com/yoyzhou/weibo_scrapy/fork">Fork it</a>。</p>
+
+<h3 id="section-5">相关阅读</h3>
+<p>1. <a href="/blog/2013/03/18/sina-weibo-login-simulator-in-python/">Python模拟登录新浪微薄（使用RSA加密方式和Cookies文件）</a></p>
+
+<p>2. <a href="/blog/2013/03/23/extract-data-with-beautifulsoup-taking-weibo-4-example/">使用Beautiful Soup抽取网页数据，解析微博用户关注信息</a></p>
+
+<p><code>---EOF---</code></p>
+
+<!-- PUT reference-style links below-->
+
+]]></content>
+  </entry>
+  
+</feed>

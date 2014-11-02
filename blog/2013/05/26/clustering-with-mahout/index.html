@@ -1,0 +1,497 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!-->
+<html class="no-js" lang="zh-CN"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Mahout与聚类分析 - Zhou&#8217;s Blog</title>
+  <meta name="author" content="yoyzhou">
+  <!--[if lt IE 9]>
+    <script src="http://x.papaapp.com/farm1/a571d2/8dda131d/html5shiv.js"></script>
+    <![endif]-->
+  
+  <meta name="description" content="本文简要的介绍了Mahout以及聚类分析，并结合实例说明了如何使用Mahout的K-Means算法进行聚类分析。Mahout是可扩展的开源机器学习软件包，目前实现的机器学习算法主要包含有协同过滤/推荐引擎，聚类和分类三个部分。Mahout从开始设计就旨在建立可扩展的机器学习软件包， &hellip;">
+  <meta name="keywords" content="Mahout, Hadoop, Clustering, Data Mining, Machine Learning, Java, MapReduce">
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://yoyzhou.github.io/blog/2013/05/26/clustering-with-mahout/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script type="text/javascript" src="http://t.papaapp.com/js/libs/jquery/1.7.2/jquery.js"></script>
+   <link href="/stylesheets/data-table.css" media="screen, projection" rel="stylesheet" type="text/css" />
+  <script src="/javascripts/modernizr-2.0.js"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+	      jax: ["input/TeX", "output/HTML-CSS"],
+		  tex2jax: {
+		  inlineMath: [ ['$', '$'], ["\\(", "\\)"] ],
+		  displayMath: [ ['$$', '$$'], ["\\[", "\\]"] ],
+		  processEscapes: true,
+		  skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+		}}
+   );
+</script>
+<script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML" type="text/javascript"></script>
+<script src="/javascripts/ender.js"></script>
+<script src="/javascripts/octopress.js" type="text/javascript"></script>
+<link href="/atom.xml" rel="alternate" title="Zhou's Blog" type="application/atom+xml">
+
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-34034666-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <header id="header" class="clearfix">    <div class="container">
+        <div class="col-group">
+            <div class="site-name ">
+                <a id="logo" href="/">
+                   Zhou&#8217;s Blog
+                </a>
+                <p class="description">There is no truth as such, there is only truth from a point of view [Nietzsche]</p>
+            </div>
+            <div>
+                <nav id="nav-menu" class="clearfix">
+                    <a class="index-nav current" href="/">Blog</a>
+<a class="archives-nav" href="/blog/archives">Archives</a>
+                </nav>
+            </div>
+        </div>
+    </div>
+</header>
+  <div id="body">
+    <div class="container">
+    	<div class="col-group">
+			<div class="col-8" id="main">
+  <div class="res-cons">
+  <article class="post clearfix">
+  
+  <header>
+    
+      <h1 class="post-title">Mahout与聚类分析</h1>
+    
+    
+      <p class="post-meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-05-26T21:53:00-07:00" pubdate data-updated="true"></time>
+        
+         | <a href="#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+<div class="post-content"><p>本文简要的介绍了Mahout以及聚类分析，并结合实例说明了如何使用Mahout的K-Means算法进行聚类分析。</p>
+
+<h4 id="mahout">Mahout</h4>
+
+<p>Mahout是Apache下的开源机器学习软件包，目前实现的机器学习算法主要包含有<strong>协同过滤/推荐引擎</strong>，<strong>聚类</strong>和<strong>分类</strong>三个部分。Mahout从设计开始就旨在建立可扩展的机器学习软件包，用于处理大数据机器学习的问题，当你正在研究的数据量大到不能在一台机器上运行时，就可以选择使用Mahout，让你的数据在Hadoop集群的进行分析。Mahout某些部分的实现直接创建在Hadoop之上，这就使得其具有进行大数据处理的能力，也是Mahout最大的优势所在。相比较于<a href="http://www.cs.waikato.ac.nz/ml/weka/">Weka</a>，<a href="https://rapid-i.com/content/view/181/190/">RapidMiner</a>等图形化的机器学习软件，Mahout只提供机器学习的程序包（library），不提供用户图形界面，并且Mahout并不包含所有的机器学习算法实现，这一点可以算得上是她的一个劣势，但前面提到过Mahout并不是“又一个机器学习软件”，而是要成为一个“可扩展的用于处理大数据的机器学习软件”，但是我相信会有越来越多的机器学习算法会在Mahout上面实现。</p>
+
+<h4 id="section">聚类分析</h4>
+
+<p>物以类聚，人以群分。顾名思义，聚类分析就是将不同的对象分为不同的组或簇，它与我们日常生活所理解的类的概念是相一致的。聚类分析能够帮助我们很好地了解对象之间的类与结构，聚类分析也能够帮助我们将个别对象指派到相应的类。</p>
+
+<blockquote>
+  <p>聚类分析仅根据在数据中发现的描述对象及其关系的信息，将数据对象分组。其目标是，组内的对象相互之间是相似的（相关的），而不同组之间的对象是不同的（不相关的）。组内的相似性（同质性）越大，组间差别越大，聚类就越好。<br />《数据挖掘导论》 Pang-Ning Tan等</p>
+</blockquote>
+
+<p>常见的聚类分析有K-Means聚类和层次聚类两种。此外还有基于密度的、基于图的以及基于模型的聚类分析方法。</p>
+
+<p>从上面的定义中可以看出，聚类的分析的关键之一在于相似性的度量，常用的相似性有基于距离的相似度，余玄相似度，Jaccard相似度以及Pearson相关系数等。</p>
+
+<h4 id="mahout-1">Mahout聚类分析</h4>
+
+<p>Mahout的聚类分析提供了K-Means聚类、Fuzzy K-Means聚类和基于模型的聚类等方法。下面我们以K-Means聚类来说明如何使用Mahout进行聚类分析。</p>
+
+<h5 id="section-1">1. 数据准备</h5>
+
+<p>在进行数据分析时，第一步必然是准备分析数据。根据研究或者项目的要求收集数据，并且对数据进行必要的预处理。比如我下面我们要提到的微博用户共被关注分析中，首先我们要收集微博用户的关注信息，然后从关注信息中提取出用户共被关注的数据，也就是进行数据预处理。最终我们需要的数据可能就像下面的格式这样直白明确：“用户1,用户2,共被关注次数”。如果你是要进行文档的聚类分析，那么首先需要的获得的是文档的TF-IDF向量（文档-词向量）。</p>
+
+<h5 id="mahoutvector">2. 将数据转换成Mahout中的Vector</h5>
+
+<p>Mahout要求每一个输入数据都应该是一个Vector，并且以Hadoop的SequenceFile类型存储。简单来说N维<strong>Vector</strong>就是一条N维<strong>记录</strong>，其中<strong>维</strong>就是记录的<strong>属性</strong>。比如一个TF-IDF向量就是一个<strong>文档</strong>记录，里面的属性就是<strong>词</strong>，有n个词就有n个维。有时候属性也叫<strong>特征</strong>。</p>
+
+<p>在准备好Vectors之后，需要将这些记录写入到Hadoop Sequence文件中。下面的代码片段演示和如何创建Mahout Vector和将记录写成Sequence文件。</p>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+<span class="line-number">18</span>
+<span class="line-number">19</span>
+<span class="line-number">20</span>
+<span class="line-number">21</span>
+<span class="line-number">22</span>
+<span class="line-number">23</span>
+<span class="line-number">24</span>
+<span class="line-number">25</span>
+<span class="line-number">26</span>
+<span class="line-number">27</span>
+<span class="line-number">28</span>
+<span class="line-number">29</span>
+<span class="line-number">30</span>
+<span class="line-number">31</span>
+<span class="line-number">32</span>
+<span class="line-number">33</span>
+<span class="line-number">34</span>
+</pre></td><td class="code"><pre><code class="java"><span class="line"><span class="c1">//...create Vector</span>
+</span><span class="line"><span class="c1">//NamedVector is a Vector Wrapper class which owns a name for each vector, very convenient class </span>
+</span><span class="line"><span class="n">NamedVector</span> <span class="n">vec</span> <span class="o">=</span> <span class="k">new</span> <span class="nf">NamedVector</span><span class="o">(</span><span class="k">new</span> <span class="nf">RandomAccessSparseVector</span><span class="o">(</span><span class="n">cflist</span><span class="o">.</span><span class="na">size</span><span class="o">()</span> <span class="o">+</span> <span class="mi">1</span><span class="o">),</span> <span class="n">account</span><span class="o">);</span>
+</span><span class="line"><span class="n">Iterator</span><span class="o">&lt;</span><span class="n">CoFollowedNode</span><span class="o">&gt;</span> <span class="n">nodeItr</span> <span class="o">=</span> <span class="n">cflist</span><span class="o">.</span><span class="na">iterator</span><span class="o">();</span>
+</span><span class="line"><span class="k">while</span><span class="o">(</span><span class="n">nodeItr</span><span class="o">.</span><span class="na">hasNext</span><span class="o">()){</span>
+</span><span class="line">	<span class="n">CoFollowedNode</span> <span class="n">cfnode</span><span class="o">=</span> <span class="n">nodeItr</span><span class="o">.</span><span class="na">next</span><span class="o">();</span>
+</span><span class="line">	<span class="c1">//set vector&#39;s n-dimension with co-followed number</span>
+</span><span class="line">	<span class="n">vec</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="n">cfnode</span><span class="o">.</span><span class="na">getDemension</span><span class="o">(),</span> <span class="n">cfnode</span><span class="o">.</span><span class="na">getCoFollowedNum</span><span class="o">());</span>
+</span><span class="line"><span class="o">}</span>
+</span><span class="line">
+</span><span class="line">
+</span><span class="line"><span class="cm">/**</span>
+</span><span class="line"><span class="cm">  * Write Vectors to Hadoop sequence file, it&#39;s required per Mahout implementation that Vectors passed</span>
+</span><span class="line"><span class="cm">  * into Mahout clusterings must be in Hadoop sequence file. </span>
+</span><span class="line"><span class="cm">  * </span>
+</span><span class="line"><span class="cm">  **/</span>
+</span><span class="line"><span class="kd">private</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">writeVectorsToSeqFile</span><span class="o">(</span><span class="n">ArrayList</span><span class="o">&lt;</span><span class="n">NamedVector</span><span class="o">&gt;</span> <span class="n">vectors</span><span class="o">,</span> <span class="n">String</span> <span class="n">filename</span><span class="o">,</span>
+</span><span class="line">		<span class="n">FileSystem</span> <span class="n">fs</span><span class="o">,</span> <span class="n">Configuration</span> <span class="n">conf</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">IOException</span> <span class="o">{</span>
+</span><span class="line">		
+</span><span class="line">	<span class="n">Path</span> <span class="n">path</span> <span class="o">=</span> <span class="k">new</span> <span class="nf">Path</span><span class="o">(</span><span class="n">filename</span><span class="o">);</span>
+</span><span class="line">	<span class="n">SequenceFile</span><span class="o">.</span><span class="na">Writer</span> <span class="n">writer</span> <span class="o">=</span> <span class="k">new</span> <span class="n">SequenceFile</span><span class="o">.</span><span class="na">Writer</span><span class="o">(</span><span class="n">fs</span><span class="o">,</span> <span class="n">conf</span><span class="o">,</span> <span class="n">path</span><span class="o">,</span>
+</span><span class="line">				<span class="n">Text</span><span class="o">.</span><span class="na">class</span><span class="o">,</span> <span class="n">VectorWritable</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+</span><span class="line">
+</span><span class="line">		
+</span><span class="line">	<span class="n">VectorWritable</span> <span class="n">vec</span> <span class="o">=</span> <span class="k">new</span> <span class="nf">VectorWritable</span><span class="o">();</span>
+</span><span class="line">		
+</span><span class="line">	<span class="c1">//write vectors to file, the key is the account id, value is the co-followed vector of the key</span>
+</span><span class="line">	<span class="k">for</span> <span class="o">(</span><span class="n">NamedVector</span> <span class="n">entry</span> <span class="o">:</span> <span class="n">vectors</span><span class="o">)</span> <span class="o">{</span>
+</span><span class="line">		<span class="n">vec</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="n">entry</span><span class="o">);</span>
+</span><span class="line">		<span class="n">writer</span><span class="o">.</span><span class="na">append</span><span class="o">(</span><span class="k">new</span> <span class="nf">Text</span><span class="o">(</span><span class="n">entry</span><span class="o">.</span><span class="na">getName</span><span class="o">()),</span> <span class="n">vec</span><span class="o">);</span>
+</span><span class="line">	<span class="o">}</span>
+</span><span class="line">	<span class="n">writer</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
+</span><span class="line">		
+</span><span class="line"><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<h5 id="mahoutk-means">3. 使用Mahout中的K-Means进行聚类</h5>
+
+<p>在介绍如何使用Mahout的K-Means之前，先复习一下基本的K-Means算法，如下所述：</p>
+
+<pre><code>**基本的K-Means算法**
+
+1, 选择K个点作为初始质心
+
+2, repeat:
+
+3,	将每个点指派到最近的质心，形成K个簇
+
+4,	重新计算每个簇的质心
+
+5, until 质心不再发生改变
+</code></pre>
+
+<div class="bogus-wrapper"><notextile><figure class="code"><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class="line-number">1</span>
+<span class="line-number">2</span>
+<span class="line-number">3</span>
+<span class="line-number">4</span>
+<span class="line-number">5</span>
+<span class="line-number">6</span>
+<span class="line-number">7</span>
+<span class="line-number">8</span>
+<span class="line-number">9</span>
+<span class="line-number">10</span>
+<span class="line-number">11</span>
+<span class="line-number">12</span>
+<span class="line-number">13</span>
+<span class="line-number">14</span>
+<span class="line-number">15</span>
+<span class="line-number">16</span>
+<span class="line-number">17</span>
+</pre></td><td class="code"><pre><code class="java"><span class="line"><span class="c1">//write initial clusters point, in this case 5 points/vectors</span>
+</span><span class="line"><span class="n">Path</span> <span class="n">path</span> <span class="o">=</span> <span class="k">new</span> <span class="nf">Path</span><span class="o">(</span><span class="s">&quot;data/clusters/part-00000&quot;</span><span class="o">);</span>
+</span><span class="line"><span class="n">SequenceFile</span><span class="o">.</span><span class="na">Writer</span> <span class="n">writer</span> <span class="o">=</span> <span class="k">new</span> <span class="n">SequenceFile</span><span class="o">.</span><span class="na">Writer</span><span class="o">(</span><span class="n">fs</span><span class="o">,</span> <span class="n">conf</span><span class="o">,</span> <span class="n">path</span><span class="o">,</span>
+</span><span class="line">		<span class="n">Text</span><span class="o">.</span><span class="na">class</span><span class="o">,</span> <span class="n">Kluster</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+</span><span class="line">
+</span><span class="line"><span class="k">for</span> <span class="o">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">k</span><span class="o">;</span> <span class="n">i</span><span class="o">++)</span> <span class="o">{</span>
+</span><span class="line">	<span class="n">NamedVector</span> <span class="n">nVec</span> <span class="o">=</span>  <span class="n">vectors</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">i</span><span class="o">);</span>
+</span><span class="line">			
+</span><span class="line">	<span class="n">Kluster</span> <span class="n">cluster</span> <span class="o">=</span> <span class="k">new</span> <span class="nf">Kluster</span><span class="o">(</span><span class="n">nVec</span><span class="o">,</span> <span class="n">i</span><span class="o">,</span> <span class="k">new</span> <span class="nf">CosineDistanceMeasure</span><span class="o">());</span>
+</span><span class="line">	<span class="n">writer</span><span class="o">.</span><span class="na">append</span><span class="o">(</span><span class="k">new</span> <span class="nf">Text</span><span class="o">(</span><span class="n">cluster</span><span class="o">.</span><span class="na">getIdentifier</span><span class="o">()),</span> <span class="n">cluster</span><span class="o">);</span>
+</span><span class="line"><span class="o">}</span>
+</span><span class="line"><span class="n">writer</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
+</span><span class="line">		
+</span><span class="line"><span class="c1">//here runs the k-means clustering in mapreduce mode, set runSequential to false</span>
+</span><span class="line"><span class="n">KMeansDriver</span><span class="o">.</span><span class="na">run</span><span class="o">(</span><span class="n">conf</span><span class="o">,</span> <span class="k">new</span> <span class="nf">Path</span><span class="o">(</span><span class="s">&quot;data/vectors&quot;</span><span class="o">),</span> <span class="k">new</span> <span class="nf">Path</span><span class="o">(</span>
+</span><span class="line">		<span class="s">&quot;data/clusters&quot;</span><span class="o">),</span> <span class="k">new</span> <span class="nf">Path</span><span class="o">(</span><span class="s">&quot;output&quot;</span><span class="o">),</span>
+</span><span class="line">		<span class="k">new</span> <span class="nf">CosineDistanceMeasure</span><span class="o">(),</span> <span class="mf">0.001</span><span class="o">,</span> <span class="mi">10</span><span class="o">,</span> <span class="kc">true</span><span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="kc">false</span><span class="o">);</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div>
+
+<p>上面的代码显示了Mahout中运行K-Means算法的用法，首先提供K个初始质心，如果用户没有提供初始质心，Mahout将根据用户给出的K随机的选择K个点作为初始质心。</p>
+
+<p>KMeansDriver提供了运行K-Means算法的入口，其中的参数包含：</p>
+
+<pre><code>/**
+   	* Iterate over the input vectors to produce clusters and, if requested, use the results of the final iteration to
+   	* cluster the input vectors.
+   	* 
+   	* @param input
+   	*          the directory pathname for input points
+   	* @param clustersIn
+   	*          the directory pathname for initial &amp; computed clusters
+   	* @param output
+   	*          the directory pathname for output points
+   	* @param measure
+   	*          the DistanceMeasure to use
+   	* @param convergenceDelta
+   	*          the convergence delta value
+   	* @param maxIterations
+   	*          the maximum number of iterations
+   	* @param runClustering
+   	*          true if points are to be clustered after iterations are completed
+   	* @param clusterClassificationThreshold
+   	*          Is a clustering strictness / outlier removal parameter. Its value should be between 0 and 1. Vectors
+   	*          having pdf below this value will not be clustered.
+   	* @param runSequential
+   	*          if true execute sequential algorithm, else run algorithm in mapreduce mode 
+   	*/
+</code></pre>
+
+<h4 id="section-2">总结</h4>
+
+<p>本文简要的介绍了Mahout以及聚类分析，并使用实例说明了如何使用Mahout的K-Means进行聚类分析。总的来说，使用Mahout进行聚类分析需要用户将数据转换成Mahout的Vector对象，并且写成Sequence文件格式，然后选择初始的质心和适当的距离度量调用KMeansDriver进行聚类。</p>
+
+<p>当然聚类分析还有很多的内容，比如如何选择距离度量，K值如何确定以及如何度量聚类的好坏等等，本篇文章旨在介绍如何使用Mahout进行聚类分析，更多的关于聚类以及机器学习的知识请您阅读相关的专业书籍。</p>
+
+<h4 id="section-3">参考数目</h4>
+
+<p>[1] Sean Owen etc., Mahout in Action, Manning Publications, 2011</p>
+
+<p>[2] Pang-Ning Tan等, 数据挖掘导论, 人民邮电出版社, 2011 </p>
+
+<p>[3] 文中代码实例的源码地址<a href="https://github.com/yoyzhou/weibo_analysis/blob/master/src/com/yoyzhou/weibo/CoFollowedClustering.java">CoFollowedClustering.java</a></p>
+
+<p><code>---EOF---</code></p>
+
+</div>
+
+
+  <footer class="post-footer">
+    <div class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">yoyzhou</span></span>
+ under 
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/clustering/'>clustering</a>, <a class='category' href='/blog/categories/data-mining/'>data mining</a>, <a class='category' href='/blog/categories/hadoop/'>hadoop</a>, <a class='category' href='/blog/categories/mahout/'>mahout</a>
+  
+</span>
+
+
+    </div>
+    
+      <div class="sharing">
+  
+  
+  
+</div>
+
+    
+    <div class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2013/05/13/hadoop-write-ur-own-rawcomparator/" title="Previous Post: 使用RawComparator加速Hadoop程序">&laquo; 使用RawComparator加速Hadoop程序</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2013/06/04/mahout-clustering-with-hadoop/" title="Next Post: 在Hadoop上运行Mahout KMeans聚类分析">在Hadoop上运行Mahout KMeans聚类分析 &raquo;</a>
+      
+    </div>
+  </footer>
+</article>
+
+  <section>
+    <h3>Comments</h3>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+  </div>
+</div>
+
+  <aside id="secondary">
+  
+    
+<section class="widget">
+	<h3 class="widget-title">About Me</h3>
+	<p><code style="font-size: 14px;">Writing is the best way of learning</code></p>
+</section>
+<section class="widget">
+	<h3 class="widget-title">Recent Posts</h3>
+	<ul class="widget-list">
+		
+     	<li>
+      	  <a href="/blog/2013/06/04/mahout-clustering-with-hadoop/">在Hadoop上运行Mahout KMeans聚类分析</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/26/clustering-with-mahout/">Mahout与聚类分析</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/13/hadoop-write-ur-own-rawcomparator/">使用RawComparator加速Hadoop程序</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/10/hadoop-serialization-and-writable-object-2/">Hadoop序列化与Writable接口(二)</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/05/09/hadoop-serialization-and-writable-object-1/">Hadoop序列化与Writable接口(一)</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/29/viz-following-networks-of-weibo-celebrities/">微博名人关注网络的社会网络分析</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/29/a-kinda-betweenness-centrality-algorithm/">A Kinda Betweenness Centrality Algorithm</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/28/studying-notes-a-set-of-measures-of-centrality-based-on-betweenness/">A Set of Measures of Centrality Based on Betweenness</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/21/adding-filter-in-hadoop-mapper-class/">Adding Filter in Hadoop Mapper Class</a>
+      	</li>
+    	
+     	<li>
+      	  <a href="/blog/2013/04/14/steps-of-programming-hadoop-with-eclipse/">使用Eclipse开发MapReduce程序的步骤</a>
+      	</li>
+    	
+	</ul>
+</section>
+
+<section class="widget">
+  <h3>GitHub Repos</h3>
+  <ul id="gh_repos" class="widget-list">
+    <li class="loading">Status updating&#8230;</li>
+  </ul>
+  
+  <a href="https://github.com/yoyzhou">@yoyzhou</a> on GitHub
+  
+  <script type="text/javascript">
+    $.domReady(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'yoyzhou',
+            count: 0,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+
+
+
+  
+</aside>
+
+
+      	</div>
+    </div>
+  </div>
+  <footer id="footer">
+  	<div class="container">
+	Copyright &copy; 2014 - yoyzhou -
+  <span class="credit">Powered by <a rel="nofollow" href="http://octopress.org">Octopress</a> on <a rel="nofollow" href="http://pages.github.com/">GitHubPages</a>
+  </span>
+  - <span class="credit">Theme by <a rel="nofollow" href="http://pagecho.com">Cho</a></span>
+
+
+</div>
+
+  </footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'yoyzhou';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://yoyzhou.github.io/blog/2013/05/26/clustering-with-mahout/';
+        var disqus_url = 'http://yoyzhou.github.io/blog/2013/05/26/clustering-with-mahout/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+
+
+
+
+</body>
+</html>
